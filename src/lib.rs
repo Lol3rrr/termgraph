@@ -1,3 +1,5 @@
+//! A Crate to output graphs on the Terminal
+
 mod graph;
 use std::{collections::HashMap, fmt::Debug, hash::Hash};
 
