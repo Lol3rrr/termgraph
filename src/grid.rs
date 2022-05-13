@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt::Debug, hash::Hash};
+use std::{collections::HashMap, fmt::Debug, hash::Hash, ops::Add};
 
 use crate::acyclic::AcyclicDirectedGraph;
 
@@ -48,9 +48,9 @@ where
         }
     }
 
-    pub fn set(&mut self, x: usize, y: usize, entry: Entry<'g, ID>) {
+    pub fn set(&mut self, x: GridCoordinate, y: usize, entry: Entry<'g, ID>) {
         let mut row = self.row_mut(y);
-        row.set(x, entry);
+        row.set(x.0, entry);
     }
 }
 
@@ -80,10 +80,6 @@ impl<'r, 'g, ID> Cursor<'r, 'g, ID>
 where
     ID: PartialEq + Debug,
 {
-    pub fn move_to(&mut self, x: usize) {
-        self.x = x;
-    }
-
     /// Returns the Middle Index of the Node
     pub fn set_node(&mut self, entry: LevelEntry<'g, ID>) -> GridCoordinate {
         let length = format!("{:?}", entry.id()).len();
@@ -117,6 +113,19 @@ where
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct GridCoordinate(usize);
+
+impl GridCoordinate {
+    pub fn between(&self, other: &Self) -> impl Iterator<Item = Self> {
+        (self.0..other.0).map(GridCoordinate)
+    }
+}
+impl Add<usize> for &GridCoordinate {
+    type Output = GridCoordinate;
+
+    fn add(self, rhs: usize) -> Self::Output {
+        GridCoordinate(self.0 + rhs)
+    }
+}
 
 #[derive(Debug)]
 pub enum LevelEntry<'g, ID> {
@@ -194,7 +203,7 @@ where
                         let mut targets: Vec<GridCoordinate> = succs
                             .iter()
                             .filter_map(|succ| second_entries.get(*succ).map(|i| (succ, i)))
-                            .map(|(id, index)| {
+                            .map(|(_, index)| {
                                 let offset: usize = second
                                     .iter()
                                     .take(*index)
@@ -294,7 +303,7 @@ where
         // Insert the Vertical Row below every Node
         {
             for ((x, id), _) in horizontals.iter() {
-                result.set(x.0, *y, Entry::Veritcal(Some(id)));
+                result.set(*x, *y, Entry::Veritcal(Some(id)));
             }
             *y += 1;
         }
@@ -302,23 +311,17 @@ where
         let horizontal_iter: Vec<_> = horizontals
             .iter()
             .flat_map(|((x1, src), x_targets)| {
-                let sx = std::iter::once(x1.0)
-                    .chain(x_targets.iter().map(|g| g.0))
-                    .min()
-                    .unwrap();
-                let tx = std::iter::once(x1.0)
-                    .chain(x_targets.iter().map(|g| g.0))
-                    .max()
-                    .unwrap();
+                let sx = std::iter::once(x1).chain(x_targets.iter()).min().unwrap();
+                let tx = std::iter::once(x1).chain(x_targets.iter()).max().unwrap();
 
                 let horizontal_y = *y;
                 {
                     for vy in (level_y + 2)..=*y {
-                        result.set(x1.0, vy, Entry::Veritcal(Some(src)));
+                        result.set(*x1, vy, Entry::Veritcal(Some(src)));
                     }
 
                     if sx != tx {
-                        for x in (sx)..(tx + 1) {
+                        for x in sx.between(&(tx + 1)) {
                             result.set(x, horizontal_y, Entry::Horizontal(src));
                         }
                     }
@@ -335,8 +338,8 @@ where
                     };
 
                     for x in into_coords.iter() {
-                        result.set(x.0, *y - 1, Entry::Veritcal(Some(src)));
-                        result.set(x.0, *y, Entry::Veritcal(Some(src)));
+                        result.set(*x, *y - 1, Entry::Veritcal(Some(src)));
+                        result.set(*x, *y, Entry::Veritcal(Some(src)));
                     }
                 }
                 *y += 1;
@@ -344,7 +347,7 @@ where
                 Box::new(
                     x_targets
                         .iter()
-                        .map(move |x_targ| (src, horizontal_y, x_targ.0)),
+                        .map(move |x_targ| (src, horizontal_y, *x_targ)),
                 )
             })
             .collect();
