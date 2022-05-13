@@ -7,7 +7,7 @@ pub enum Entry<'g, ID> {
     Horizontal(&'g ID),
     Veritcal(Option<&'g ID>),
     Cross(Option<&'g ID>),
-    Node(LevelEntry<'g, ID>),
+    Node(LevelEntry<'g, ID>, usize),
     OpenParen,
     CloseParen,
 }

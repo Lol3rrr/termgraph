@@ -78,12 +78,30 @@ where
 
 impl<'r, 'g, ID> Cursor<'r, 'g, ID>
 where
-    ID: PartialEq,
+    ID: PartialEq + Debug,
 {
     pub fn move_to(&mut self, x: usize) {
         self.x = x;
     }
 
+    /// Returns the Middle Index of the Node
+    pub fn set_node(&mut self, entry: LevelEntry<'g, ID>) -> GridCoordinate {
+        let length = format!("{:?}", entry.id()).len();
+
+        let last_x = self.x + length;
+        while self.row.len() <= last_x {
+            self.row.push(Entry::Empty);
+        }
+
+        for part in 0..length {
+            let target = self.row.get_mut(self.x).unwrap();
+            *target = &target + Entry::Node(entry.clone(), part);
+
+            self.x += 1;
+        }
+
+        GridCoordinate(self.x - ((length + 1) / 2))
+    }
     pub fn set(&mut self, entry: Entry<'g, ID>) -> usize {
         while self.row.len() <= self.x {
             self.row.push(Entry::Empty);
@@ -96,6 +114,9 @@ where
         self.x - 1
     }
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub struct GridCoordinate(usize);
 
 #[derive(Debug)]
 pub enum LevelEntry<'g, ID> {
@@ -139,18 +160,14 @@ where
     fn generate_horizontals<T>(
         agraph: &AcyclicDirectedGraph<'g, ID, T>,
         levels: &mut Vec<Vec<LevelEntry<'g, ID>>>,
-    ) -> Vec<Vec<(usize, Vec<usize>)>> {
-        let mut horizontal = Vec::new();
-        for index in 0..(levels.len() - 1) {
-            let levels_slice = levels.as_mut_slice();
-            let (first_half, second_half) = levels_slice.split_at_mut(index + 1);
+    ) -> Vec<Vec<((GridCoordinate, &'g ID), Vec<GridCoordinate>)>> {
+        (0..(levels.len() - 1))
+            .map(|index| {
+                let levels_slice = levels.as_mut_slice();
+                let (first_half, second_half) = levels_slice.split_at_mut(index + 1);
 
-            let first = first_half.get_mut(index).expect("");
-            let second = second_half.get_mut(0).unwrap();
-
-            let mut temp_horizontal = Vec::new();
-            for (firstx, entry) in first.iter().enumerate() {
-                let succs = agraph.successors(entry.id()).unwrap();
+                let first = first_half.get_mut(index).expect("");
+                let second = second_half.get_mut(0).unwrap();
 
                 let second_entries: HashMap<&ID, usize> = second
                     .iter()
@@ -158,59 +175,93 @@ where
                     .map(|(i, id)| (id.id(), i))
                     .collect();
 
-                let mut targets: Vec<usize> = succs
+                let mut temp_horizontal: Vec<_> = first
                     .iter()
-                    .filter_map(|succ| second_entries.get(*succ))
-                    .copied()
+                    .enumerate()
+                    .map(|(raw_x, e)| {
+                        let offset: usize = first
+                            .iter()
+                            .take(raw_x)
+                            .filter(|id| id.is_user())
+                            .map(|id| format!("{:?}", id.id()).len().saturating_sub(1))
+                            .sum();
+
+                        (GridCoordinate(raw_x * 5 + 2 + offset), e)
+                    })
+                    .map(|(root, entry)| {
+                        let succs = agraph.successors(entry.id()).unwrap();
+
+                        let mut targets: Vec<GridCoordinate> = succs
+                            .iter()
+                            .filter_map(|succ| second_entries.get(*succ).map(|i| (succ, i)))
+                            .map(|(id, index)| {
+                                let offset: usize = second
+                                    .iter()
+                                    .take(*index)
+                                    .filter(|id| id.is_user())
+                                    .map(|id| format!("{:?}", id.id()).len().saturating_sub(1))
+                                    .sum();
+
+                                GridCoordinate(index * 5 + 2 + offset)
+                            })
+                            .collect();
+
+                        let max_target = second.len() - 1;
+
+                        let succ_count = match &entry {
+                            LevelEntry::User(_) => succs.len(),
+                            LevelEntry::Dummy { to, .. } => {
+                                succs.iter().filter(|id| **id == *to).count()
+                            }
+                        };
+
+                        if succ_count != targets.len() {
+                            let succ_targets: Box<dyn Iterator<Item = &ID>> = match &entry {
+                                LevelEntry::User(_) => Box::new(
+                                    succs
+                                        .iter()
+                                        .filter(|id| !second_entries.contains_key(*id))
+                                        .copied(),
+                                ),
+                                LevelEntry::Dummy { to, .. } => Box::new(std::iter::once(*to)),
+                            };
+
+                            let mut current_x = max_target;
+                            let x_pos_iter = succ_targets.map(|id| {
+                                current_x += 1;
+                                (id, current_x)
+                            });
+                            for (id, x) in x_pos_iter {
+                                second.push(LevelEntry::Dummy {
+                                    from: entry.id(),
+                                    to: id,
+                                });
+                                let offset: usize = second
+                                    .iter()
+                                    .take(x)
+                                    .filter(|id| id.is_user())
+                                    .map(|id| format!("{:?}", id.id()).len().saturating_sub(1))
+                                    .sum();
+
+                                targets.push(GridCoordinate(x * 5 + 2 + offset));
+                            }
+                        }
+
+                        ((root, entry.id()), targets)
+                    })
                     .collect();
 
-                let max_target = second.len() - 1;
-
-                let succ_count = match &entry {
-                    LevelEntry::User(_) => succs.len(),
-                    LevelEntry::Dummy { to, .. } => succs.iter().filter(|id| **id == *to).count(),
-                };
-
-                if succ_count != targets.len() {
-                    let succ_targets: Box<dyn Iterator<Item = &ID>> = match &entry {
-                        LevelEntry::User(_) => Box::new(
-                            succs
-                                .iter()
-                                .filter(|id| !second_entries.contains_key(*id))
-                                .copied(),
-                        ),
-                        LevelEntry::Dummy { to, .. } => Box::new(std::iter::once(*to)),
-                    };
-
-                    let mut current_x = max_target;
-                    let x_pos_iter = succ_targets.map(|id| {
-                        current_x += 1;
-                        (id, current_x)
-                    });
-                    for (id, x) in x_pos_iter {
-                        second.push(LevelEntry::Dummy {
-                            from: entry.id(),
-                            to: id,
-                        });
-                        targets.push(x);
-                    }
-                }
-
-                temp_horizontal.push((firstx, targets));
-            }
-
-            temp_horizontal.sort_unstable_by(|(x, _), (x2, _)| x.cmp(x2));
-            horizontal.push(temp_horizontal);
-        }
-
-        horizontal
+                temp_horizontal.sort_unstable_by(|((x, _), _), ((x2, _), _)| x.cmp(x2));
+                temp_horizontal
+            })
+            .collect()
     }
 
     fn connect_layer(
         y: &mut usize,
         level: &[LevelEntry<'g, ID>],
         result: &mut InnerGrid<'g, ID>,
-        mut horizontals: Vec<(usize, Vec<usize>)>,
+        mut horizontals: Vec<((GridCoordinate, &'g ID), Vec<GridCoordinate>)>,
     ) {
         horizontals.sort_by_key(|(_, ts)| ts.len());
 
@@ -225,12 +276,12 @@ where
                 match &entry {
                     LevelEntry::User(_) => {
                         cursor.set(Entry::OpenParen);
-                        cursor.set(Entry::Node(entry.clone()));
+                        cursor.set_node(entry.clone());
                         cursor.set(Entry::CloseParen);
                     }
                     LevelEntry::Dummy { .. } => {
                         cursor.set(Entry::Empty);
-                        cursor.set(Entry::Node(entry.clone()));
+                        cursor.set_node(entry.clone());
                         cursor.set(Entry::Empty);
                     }
                 };
@@ -240,48 +291,34 @@ where
             *y += 1;
         }
 
-        // Inserts the Vertical-Lines below every Node
+        // Insert the Vertical Row below every Node
         {
-            let row = result.row_mut(*y);
-            let mut cursor = row.into_cursor();
-
-            for (x_i, src) in level
-                .iter()
-                .enumerate()
-                .filter(|(x, _)| horizontals.iter().any(|(hx, _)| hx == x))
-                .map(|(x, src)| (x * 5, src))
-            {
-                cursor.move_to(x_i);
-                cursor.set(Entry::Empty);
-                cursor.set(Entry::Empty);
-                cursor.set(Entry::Veritcal(Some(src.id())));
-                cursor.set(Entry::Empty);
-                cursor.set(Entry::Empty);
+            for ((x, id), _) in horizontals.iter() {
+                result.set(x.0, *y, Entry::Veritcal(Some(id)));
             }
             *y += 1;
         }
 
         let horizontal_iter: Vec<_> = horizontals
             .iter()
-            .flat_map(|(x1, x_targets)| {
-                let src = level
-                    .iter()
-                    .enumerate()
-                    .find(|(hx, _)| hx == x1)
-                    .map(|(_, id)| id.id())
+            .flat_map(|((x1, src), x_targets)| {
+                let sx = std::iter::once(x1.0)
+                    .chain(x_targets.iter().map(|g| g.0))
+                    .min()
                     .unwrap();
-
-                let sx = std::iter::once(x1).chain(x_targets.iter()).min().unwrap();
-                let tx = std::iter::once(x1).chain(x_targets.iter()).max().unwrap();
+                let tx = std::iter::once(x1.0)
+                    .chain(x_targets.iter().map(|g| g.0))
+                    .max()
+                    .unwrap();
 
                 let horizontal_y = *y;
                 {
                     for vy in (level_y + 2)..=*y {
-                        result.set(x1 * 5 + 2, vy, Entry::Veritcal(Some(src)));
+                        result.set(x1.0, vy, Entry::Veritcal(Some(src)));
                     }
 
                     if sx != tx {
-                        for x in ((sx * 5) + 2)..((tx * 5) + 3) {
+                        for x in (sx)..(tx + 1) {
                             result.set(x, horizontal_y, Entry::Horizontal(src));
                         }
                     }
@@ -298,8 +335,8 @@ where
                     };
 
                     for x in into_coords.iter() {
-                        result.set(x * 5 + 2, *y - 1, Entry::Veritcal(Some(src)));
-                        result.set(x * 5 + 2, *y, Entry::Veritcal(Some(src)));
+                        result.set(x.0, *y - 1, Entry::Veritcal(Some(src)));
+                        result.set(x.0, *y, Entry::Veritcal(Some(src)));
                     }
                 }
                 *y += 1;
@@ -307,7 +344,7 @@ where
                 Box::new(
                     x_targets
                         .iter()
-                        .map(move |x_targ| (src, horizontal_y, x_targ * 5 + 2)),
+                        .map(move |x_targ| (src, horizontal_y, x_targ.0)),
                 )
             })
             .collect();
@@ -392,7 +429,8 @@ where
                         }
                         None => print!("+"),
                     },
-                    Entry::Node(id) => match id {
+                    Entry::Node(_, part) if *part > 0 => {}
+                    Entry::Node(id, _) => match id {
                         LevelEntry::User(id) => print!("{:?}", id),
                         LevelEntry::Dummy { from, .. } => {
                             let color = get_color(*from);
