@@ -155,6 +155,23 @@ impl<'g, ID> Clone for LevelEntry<'g, ID> {
     }
 }
 
+#[derive(Debug)]
+struct Horizontal<'g, ID> {
+    x_coord: GridCoordinate,
+    src: &'g ID,
+    targets: Vec<GridCoordinate>,
+}
+
+impl<'g, ID> Clone for Horizontal<'g, ID> {
+    fn clone(&self) -> Self {
+        Self {
+            x_coord: self.x_coord,
+            src: self.src,
+            targets: self.targets.clone(),
+        }
+    }
+}
+
 pub struct Grid<'g, ID>
 where
     ID: Eq + Hash,
@@ -169,7 +186,7 @@ where
     fn generate_horizontals<T>(
         agraph: &AcyclicDirectedGraph<'g, ID, T>,
         levels: &mut Vec<Vec<LevelEntry<'g, ID>>>,
-    ) -> Vec<Vec<((GridCoordinate, &'g ID), Vec<GridCoordinate>)>> {
+    ) -> Vec<Vec<Horizontal<'g, ID>>> {
         (0..(levels.len() - 1))
             .map(|index| {
                 let levels_slice = levels.as_mut_slice();
@@ -256,11 +273,15 @@ where
                             }
                         }
 
-                        ((root, entry.id()), targets)
+                        Horizontal {
+                            x_coord: root,
+                            src: entry.id(),
+                            targets,
+                        }
                     })
                     .collect();
 
-                temp_horizontal.sort_unstable_by(|((x, _), _), ((x2, _), _)| x.cmp(x2));
+                temp_horizontal.sort_unstable_by(|x1, x2| x1.x_coord.cmp(&x2.x_coord));
                 temp_horizontal
             })
             .collect()
@@ -270,9 +291,9 @@ where
         y: &mut usize,
         level: &[LevelEntry<'g, ID>],
         result: &mut InnerGrid<'g, ID>,
-        mut horizontals: Vec<((GridCoordinate, &'g ID), Vec<GridCoordinate>)>,
+        mut horizontals: Vec<Horizontal<'g, ID>>,
     ) {
-        horizontals.sort_by_key(|(_, ts)| ts.len());
+        horizontals.sort_by_key(|h| h.targets.len());
 
         let level_y = *y;
 
@@ -302,27 +323,33 @@ where
 
         // Insert the Vertical Row below every Node
         {
-            for ((x, id), _) in horizontals.iter() {
-                result.set(*x, *y, Entry::Veritcal(Some(id)));
+            for hori in horizontals.iter() {
+                result.set(hori.x_coord, *y, Entry::Veritcal(Some(hori.src)));
             }
             *y += 1;
         }
 
         let horizontal_iter: Vec<_> = horizontals
             .iter()
-            .flat_map(|((x1, src), x_targets)| {
-                let sx = std::iter::once(x1).chain(x_targets.iter()).min().unwrap();
-                let tx = std::iter::once(x1).chain(x_targets.iter()).max().unwrap();
+            .flat_map(|hori| {
+                let sx = std::iter::once(&hori.x_coord)
+                    .chain(hori.targets.iter())
+                    .min()
+                    .unwrap();
+                let tx = std::iter::once(&hori.x_coord)
+                    .chain(hori.targets.iter())
+                    .max()
+                    .unwrap();
 
                 let horizontal_y = *y;
                 {
                     for vy in (level_y + 2)..=*y {
-                        result.set(*x1, vy, Entry::Veritcal(Some(src)));
+                        result.set(hori.x_coord, vy, Entry::Veritcal(Some(hori.src)));
                     }
 
                     if sx != tx {
                         for x in sx.between(&(tx + 1)) {
-                            result.set(x, horizontal_y, Entry::Horizontal(src));
+                            result.set(x, horizontal_y, Entry::Horizontal(hori.src));
                         }
                     }
                 }
@@ -331,23 +358,23 @@ where
                     *y += 1;
 
                     let into_coords = {
-                        let mut targets = x_targets.clone();
+                        let mut targets = hori.targets.clone();
                         targets.sort_unstable();
                         targets.dedup();
                         targets
                     };
 
                     for x in into_coords.iter() {
-                        result.set(*x, *y - 1, Entry::Veritcal(Some(src)));
-                        result.set(*x, *y, Entry::Veritcal(Some(src)));
+                        result.set(*x, *y - 1, Entry::Veritcal(Some(hori.src)));
+                        result.set(*x, *y, Entry::Veritcal(Some(hori.src)));
                     }
                 }
                 *y += 1;
 
                 Box::new(
-                    x_targets
+                    hori.targets
                         .iter()
-                        .map(move |x_targ| (src, horizontal_y, *x_targ)),
+                        .map(move |x_targ| (hori.src, horizontal_y, *x_targ)),
                 )
             })
             .collect();
