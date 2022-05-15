@@ -1,4 +1,4 @@
-use std::ops::Add;
+use std::{fmt::Debug, ops::Add};
 
 use super::LevelEntry;
 
@@ -62,5 +62,47 @@ where
                 todo!()
             }
         }
+    }
+}
+
+impl<'g, ID> Entry<'g, ID>
+where
+    ID: Debug,
+{
+    pub fn display<C>(&self, get_color: &mut C)
+    where
+        C: FnMut(&'g ID) -> usize,
+    {
+        match self {
+            Entry::Empty => print!(" "),
+            Entry::OpenParen => print!("("),
+            Entry::CloseParen => print!(")"),
+            Entry::Horizontal(src) => {
+                let color = get_color(*src);
+                print!("\x1b[{}m-\x1b[0m", color)
+            }
+            Entry::Veritcal(src) => match src {
+                Some(src) => {
+                    let color = get_color(*src);
+                    print!("\x1b[{}m|\x1b[0m", color)
+                }
+                None => print!("|"),
+            },
+            Entry::Cross(src) => match src {
+                Some(src) => {
+                    let color = get_color(*src);
+                    print!("\x1b[{}m+\x1b[0m", color)
+                }
+                None => print!("+"),
+            },
+            Entry::Node(_, part) if *part > 0 => {}
+            Entry::Node(id, _) => match id {
+                LevelEntry::User(id) => print!("{:?}", id),
+                LevelEntry::Dummy { from, .. } => {
+                    let color = get_color(*from);
+                    print!("\x1b[{}m|\x1b[0m", color)
+                }
+            },
+        };
     }
 }
