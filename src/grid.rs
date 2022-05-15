@@ -162,7 +162,16 @@ where
                     })
                     .collect();
 
+                // Sorts them based on their source X-Coordinates
                 temp_horizontal.sort_unstable_by(|x1, x2| x1.x_coord.cmp(&x2.x_coord));
+
+                // Sorts them based on their Targets average Coordinate, to try to avoid
+                // unnecessary crossings in the Edges
+                temp_horizontal.sort_by_cached_key(|hori| {
+                    let sum_targets: usize = hori.targets.iter().map(|cord| cord.0).sum();
+                    let target_count = hori.targets.len();
+                    sum_targets / target_count
+                });
                 temp_horizontal
             })
             .collect()

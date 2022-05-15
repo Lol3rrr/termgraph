@@ -9,6 +9,7 @@ use crate::acyclic::AcyclicDirectedGraph;
 mod tarjan;
 
 /// A Directed Graph that can be displayed using [`display`](crate::display)
+#[derive(Debug)]
 pub struct DirectedGraph<ID, T> {
     nodes: HashMap<ID, T>,
     edges: HashMap<ID, HashSet<ID>>,
@@ -58,6 +59,15 @@ where
             return AcyclicDirectedGraph::new(nodes, edges);
         }
 
+        let mut current_sccs = sccs;
+        while !current_sccs.iter().all(|s| s.len() == 1) {
+            dbg!(&current_sccs);
+            let first_scc = current_sccs.swap_remove(0);
+            dbg!(&first_scc);
+
+            todo!("Break Cycle in Component")
+        }
+
         todo!("Breakup Cycle")
     }
 }
@@ -69,6 +79,22 @@ where
     fn default() -> Self {
         Self::new()
     }
+}
+
+impl<ID, T> PartialEq for DirectedGraph<ID, T>
+where
+    ID: Hash + Eq,
+    T: PartialEq,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.nodes == other.nodes && self.edges == other.edges
+    }
+}
+impl<ID, T> Eq for DirectedGraph<ID, T>
+where
+    ID: Hash + Eq,
+    T: Eq,
+{
 }
 
 #[cfg(test)]
