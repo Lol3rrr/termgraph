@@ -46,29 +46,64 @@ where
         }
     }
 
-    pub(crate) fn to_acyclic(&self) -> AcyclicDirectedGraph<'_, ID, T> {
-        let sccs = tarjan::sccs(self);
+    pub(crate) fn to_acyclic(&self) -> (AcyclicDirectedGraph<'_, ID, T>, Vec<(&ID, &ID)>) {
+        let anodes: HashMap<_, _> = self.nodes.iter().collect();
+        let mut aedges: HashMap<_, HashSet<_, _>> = self
+            .edges
+            .iter()
+            .map(|(id, targets)| (id, targets.iter().collect()))
+            .collect();
 
+        let sccs = tarjan::sccs((&anodes, &aedges));
+
+        // If the given Graph has no cycles, we can just return the same Nodes and Edges
         if sccs.iter().all(|s| s.len() == 1) {
-            let nodes = self.nodes.iter().collect();
-            let edges = self
-                .edges
-                .iter()
-                .map(|(id, targets)| (id, targets.iter().collect()))
-                .collect();
-            return AcyclicDirectedGraph::new(nodes, edges);
+            return (AcyclicDirectedGraph::new(anodes, aedges), Vec::new());
         }
 
-        let mut current_sccs = sccs;
-        while !current_sccs.iter().all(|s| s.len() == 1) {
-            dbg!(&current_sccs);
-            let first_scc = current_sccs.swap_remove(0);
-            dbg!(&first_scc);
+        // A List of Edges that were reversed to make the Graph acyclic
+        let mut reversed_edges: Vec<(&ID, &ID)> = Vec::new();
 
-            todo!("Break Cycle in Component")
+        // Break up the Cycles
+        loop {
+            // Determine the current Strongly-Connected-Components
+            let current_sccs = tarjan::sccs((&anodes, &aedges));
+            if current_sccs.iter().all(|s| s.len() == 1) {
+                break;
+            }
+
+            // Get the first Strongly Connected Component with at least 2 Elements
+            let mut first_scc = current_sccs.into_iter().find(|s| s.len() > 1).expect(
+                "We just checked that there is at least one SCC with more than 1 Verticies",
+            );
+
+            // Get the last Entry of the Component
+            let last_part = first_scc
+                .pop()
+                .copied()
+                .expect("We know that the SCC has at least 2 Verticies");
+
+            // The Vertices reachable from the last Component
+            let last_targets = aedges.get(last_part).expect("");
+
+            // Search for a Vertex in the Component that is reachable from the last Entry
+            let first_part = first_scc
+                .into_iter()
+                .find(|target| last_targets.contains(*target))
+                .copied()
+                .expect("We know that the SCC has at least 1 more remaining Vertex");
+
+            // Store the Edge as being reversed
+            reversed_edges.push((last_part, first_part));
+
+            // Reverse the Edges
+            let last_targets = aedges.get_mut(last_part).expect("");
+            last_targets.remove(first_part);
+            let first_targets = aedges.get_mut(first_part).expect("");
+            first_targets.insert(last_part);
         }
 
-        todo!("Breakup Cycle")
+        (AcyclicDirectedGraph::new(anodes, aedges), reversed_edges)
     }
 }
 
@@ -113,7 +148,7 @@ mod tests {
             tmp
         };
 
-        let result = normal.to_acyclic();
+        let (result_graph, reversed_edges) = normal.to_acyclic();
         let expected = AcyclicDirectedGraph::new(
             nodes.iter().map(|(id, c)| (id, c)).collect(),
             [
@@ -124,11 +159,11 @@ mod tests {
             .collect(),
         );
 
-        assert_eq!(expected, result);
+        assert_eq!(expected, result_graph);
+        assert_eq!(Vec::<(&i32, &i32)>::new(), reversed_edges);
     }
 
     #[test]
-    #[ignore = "Braking up cycles is not yet supported"]
     fn toacyclic_with_cycle() {
         let nodes = [(0, "first"), (1, "second"), (2, "third")];
         let edges = [(0, 1), (1, 2), (2, 0)];
@@ -140,9 +175,12 @@ mod tests {
             tmp
         };
 
-        let result = normal.to_acyclic();
+        let (result_graph, reved_edges) = normal.to_acyclic();
 
-        let _ = result;
-        unreachable!("Test not finished")
+        assert_eq!(1, reved_edges.len());
+
+        // TODO
+        // Determine a way to check if the Graph is truly acyclic
+        let _ = result_graph;
     }
 }

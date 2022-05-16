@@ -32,13 +32,13 @@ pub fn display<ID, T>(graph: &DirectedGraph<ID, T>, max_per_level: usize)
 where
     ID: Hash + Eq + Debug,
 {
-    let agraph = graph.to_acyclic();
+    let (agraph, reved_edges) = graph.to_acyclic();
     let levels = levels(&agraph, max_per_level);
 
     // TODO
     // Perform permutations on each Level to reduce the crossings of different Paths
 
-    let grid = grid::Grid::construct(&agraph, levels);
+    let grid = grid::Grid::construct(&agraph, levels, reved_edges);
     grid.display();
     println!();
 }
@@ -70,12 +70,11 @@ where
 
     for v in ordering.into_iter().rev() {
         let v_level = match graph.outgoing(v) {
-            Some(out) => {
-                out.map(|id| vertex_levels.get(id).unwrap_or(&0))
-                    .max()
-                    .unwrap()
-                    + 1
-            }
+            Some(out) => out
+                .map(|id| vertex_levels.get(id).unwrap_or(&0))
+                .max()
+                .map(|m| m + 1)
+                .unwrap_or(0),
             None => 0,
         };
 

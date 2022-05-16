@@ -279,7 +279,12 @@ where
     pub fn construct<T>(
         agraph: &AcyclicDirectedGraph<'g, ID, T>,
         levels: Vec<Vec<&'g ID>>,
+        reved_edges: Vec<(&'g ID, &'g ID)>,
     ) -> Self {
+        // TODO
+        // Figure out how to correctly incorporate the reversed Edges into the generated Grid
+        let _ = reved_edges;
+
         let mut levels: Vec<Vec<LevelEntry<'g, ID>>> = levels
             .into_iter()
             .map(|inner_level| {

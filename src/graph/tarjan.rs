@@ -2,12 +2,10 @@
 //! https://en.wikipedia.org/wiki/Tarjan%27s_strongly_connected_components_algorithm
 
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     hash::Hash,
     sync::atomic::{AtomicUsize, Ordering},
 };
-
-use crate::DirectedGraph;
 
 struct NodeData {
     index: Option<usize>,
@@ -15,17 +13,22 @@ struct NodeData {
     onstack: bool,
 }
 
-pub fn sccs<ID, T>(graph: &DirectedGraph<ID, T>) -> Vec<Vec<&ID>>
+pub fn sccs<'g, 'i, ID, T>(
+    graph: (
+        &'g HashMap<&'i ID, &'i T>,
+        &'g HashMap<&'i ID, HashSet<&'i ID>>,
+    ),
+) -> Vec<Vec<&'g &'i ID>>
 where
     ID: Hash + Eq,
 {
     let mut result = Vec::new();
 
     let index = AtomicUsize::new(0);
-    let mut stack: Vec<&ID> = Vec::new();
+    let mut stack: Vec<&&ID> = Vec::new();
 
-    let mut nodes: HashMap<&ID, _> = graph
-        .nodes
+    let mut nodes: HashMap<&&ID, _> = graph
+        .0
         .keys()
         .map(|id| {
             (
@@ -39,13 +42,13 @@ where
         })
         .collect();
 
-    for id in graph.nodes.keys() {
+    for id in graph.0.keys() {
         let data = nodes.get(id).expect("");
         if data.index.is_none() {
             strongconnect(
                 id,
                 &mut nodes,
-                graph,
+                graph.1,
                 &mut stack,
                 &|| index.fetch_add(1, Ordering::SeqCst),
                 &mut |ids| {
@@ -58,10 +61,10 @@ where
     result
 }
 
-fn strongconnect<'g, ID, T, I, AS>(
+fn strongconnect<'g, ID, I, AS>(
     node: &'g ID,
     nodes: &mut HashMap<&ID, NodeData>,
-    graph: &'g DirectedGraph<ID, T>,
+    edges: &'g HashMap<ID, HashSet<ID>>,
     stack: &mut Vec<&'g ID>,
     index_fn: &I,
     add_scc: &mut AS,
@@ -79,11 +82,11 @@ fn strongconnect<'g, ID, T, I, AS>(
     stack.push(node);
     v.onstack = true;
 
-    if let Some(succs) = graph.edges.get(node) {
+    if let Some(succs) = edges.get(node) {
         for succ_id in succs {
             let w = nodes.get(succ_id).expect("");
             if w.index.is_none() {
-                strongconnect(succ_id, nodes, graph, stack, index_fn, add_scc);
+                strongconnect(succ_id, nodes, edges, stack, index_fn, add_scc);
 
                 let w = nodes.get(succ_id).expect("");
                 let w_lowlink = w.lowlink.expect("");
