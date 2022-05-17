@@ -13,14 +13,14 @@
 //!
 //! # Example
 //! ```rust
-//! use termgraph::{DirectedGraph, IDFormatter};
+//! use termgraph::{DirectedGraph, IDFormatter, Config};
 //!
-//! let formatter = IDFormatter::new();
+//! let config = Config::new(IDFormatter::new(), 3);
 //! let mut graph = DirectedGraph::new();
 //! graph.add_nodes([(0, "first"), (1, "second"), (2, "third")]);
 //! graph.add_edges([(0, 1), (0,2), (1, 2)]);
 //!
-//! termgraph::display(&graph, 2, &formatter);
+//! termgraph::display(&graph, &config);
 //! ```
 #![warn(missing_docs)]
 
@@ -53,14 +53,14 @@ pub use config::{Color, Config};
 ///
 /// # Example
 /// ```rust
-/// use termgraph::{DirectedGraph, IDFormatter};
+/// use termgraph::{DirectedGraph, IDFormatter, Config};
 ///
-/// let formatter = IDFormatter::new();
+/// let config = Config::new(IDFormatter::new(), 3);
 /// let mut graph = DirectedGraph::new();
 /// graph.add_nodes([(0, "first"), (1, "second"), (2, "third")]);
 /// graph.add_edges([(0, 1), (0,2), (1, 2)]);
 ///
-/// termgraph::display(&graph, 2, &formatter);
+/// termgraph::display(&graph, &config);
 /// ```
 pub fn display<ID, T>(graph: &DirectedGraph<ID, T>, config: &Config<ID, T>)
 where

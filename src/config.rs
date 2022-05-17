@@ -35,7 +35,7 @@ impl From<Color> for usize {
 /// ```rust
 /// use termgraph::{Config, IDFormatter};
 ///
-/// let config = Config::new(&IDFormatter::new(), 3).default_colors();
+/// let config: Config<usize, usize> = Config::new(IDFormatter::new(), 3).default_colors();
 /// ```
 pub struct Config<ID, T> {
     pub(crate) formatter: Box<dyn NodeFormatter<ID, T>>,
