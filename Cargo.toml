@@ -2,6 +2,11 @@
 name = "termgraph"
 version = "0.1.0"
 edition = "2021"
+authors = ["Lol3r <lol3r@lol3r.net>"]
+description = "A Crate to displays Graphs in the Terminal"
+readme = "README.md"
+repository = "https://github.com/Lol3rrr/termgraph"
+license = "MIT OR Apache-2.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
