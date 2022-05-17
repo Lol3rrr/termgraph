@@ -1,6 +1,7 @@
 # Termgraph
 [![Docs](https://docs.rs/termgraph/badge.svg)](https://docs.rs/termgraph/)
 [![Crates.io](https://img.shields.io/crates/v/termgraph.svg)](https://crates.io/crates/termgraph)
+
 A utility to display Directed-Graphs in the Terminal
 
 ## Motivation
