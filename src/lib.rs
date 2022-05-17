@@ -54,6 +54,10 @@ pub fn display<ID, T>(graph: &DirectedGraph<ID, T>, max_per_level: usize)
 where
     ID: Hash + Eq + Debug,
 {
+    if graph.is_empty() {
+        return;
+    }
+
     let (agraph, reved_edges) = graph.to_acyclic();
     let levels = levels(&agraph, max_per_level);
 

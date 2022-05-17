@@ -40,6 +40,10 @@ where
         }
     }
 
+    pub(crate) fn is_empty(&self) -> bool {
+        self.nodes.is_empty()
+    }
+
     /// Adds the Nodes to the Graph
     pub fn add_nodes<I>(&mut self, iter: I)
     where
