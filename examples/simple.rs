@@ -1,6 +1,8 @@
-use termgraph::DirectedGraph;
+use termgraph::{DefaultFormatter, DirectedGraph};
 
 fn main() {
+    let formatter = DefaultFormatter::new();
+
     let display_graph = {
         let mut tmp: DirectedGraph<usize, String> = DirectedGraph::new();
 
@@ -13,7 +15,7 @@ fn main() {
 
         tmp
     };
-    termgraph::display(&display_graph, 3);
+    termgraph::display(&display_graph, 3, &formatter);
 
     let branched_graph = {
         let mut tmp: DirectedGraph<usize, &str> = DirectedGraph::new();
@@ -23,7 +25,7 @@ fn main() {
 
         tmp
     };
-    termgraph::display(&branched_graph, 3);
+    termgraph::display(&branched_graph, 3, &formatter);
 
     let square_graph = {
         let mut tmp: DirectedGraph<usize, &str> = DirectedGraph::new();
@@ -33,7 +35,7 @@ fn main() {
 
         tmp
     };
-    termgraph::display(&square_graph, 3);
+    termgraph::display(&square_graph, 3, &formatter);
 
     let cross_level_branch = {
         let mut tmp: DirectedGraph<usize, &str> = DirectedGraph::new();
@@ -49,5 +51,5 @@ fn main() {
 
         tmp
     };
-    termgraph::display(&cross_level_branch, 3);
+    termgraph::display(&cross_level_branch, 3, &formatter);
 }

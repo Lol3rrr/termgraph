@@ -4,7 +4,7 @@ use std::{
     hash::Hash,
 };
 
-use crate::acyclic::AcyclicDirectedGraph;
+use crate::{acyclic::AcyclicDirectedGraph, NodeFormatter};
 
 mod entry;
 pub use entry::Entry;
@@ -62,15 +62,17 @@ where
     ID: Eq + Hash,
 {
     inner: InnerGrid<'g, ID>,
+    names: HashMap<&'g ID, String>,
 }
 
 impl<'g, ID> Grid<'g, ID>
 where
-    ID: Hash + Eq + Display,
+    ID: Hash + Eq,
 {
     fn generate_horizontals<T>(
         agraph: &AcyclicDirectedGraph<'g, ID, T>,
         levels: &mut Vec<Vec<LevelEntry<'g, ID>>>,
+        node_names: &HashMap<&ID, String>,
     ) -> Vec<Vec<Horizontal<'g, ID>>> {
         (0..(levels.len() - 1))
             .map(|index| {
@@ -94,10 +96,18 @@ where
                             .iter()
                             .take(raw_x)
                             .filter(|id| id.is_user())
-                            .map(|id| format!("{}", id.id()).len().saturating_sub(1))
+                            .map(|id| node_names.get(id.id()).map(|n| n.len()).unwrap_or(0))
                             .sum();
 
-                        (GridCoordinate(raw_x * 5 + 2 + offset), e)
+                        let in_node_offset = node_names.get(e.id()).map(|s| s.len()).unwrap_or(0);
+
+                        let cord = if e.is_user() {
+                            raw_x * 2 + offset + in_node_offset / 2 + 1
+                        } else {
+                            raw_x * 2 + offset + 1
+                        };
+
+                        (GridCoordinate(cord), e)
                     })
                     .map(|(root, entry)| {
                         let succs = agraph.successors(entry.id()).unwrap();
@@ -105,15 +115,18 @@ where
                         let mut targets: Vec<GridCoordinate> = succs
                             .iter()
                             .filter_map(|succ| second_entries.get(*succ).map(|i| (succ, i)))
-                            .map(|(_, index)| {
+                            .map(|(t_id, index)| {
                                 let offset: usize = second
                                     .iter()
                                     .take(*index)
                                     .filter(|id| id.is_user())
-                                    .map(|id| format!("{}", id.id()).len().saturating_sub(1))
+                                    .map(|id| node_names.get(id.id()).map(|n| n.len()).unwrap_or(0))
                                     .sum();
 
-                                GridCoordinate(index * 5 + 2 + offset)
+                                let in_node_offset =
+                                    node_names.get(t_id).map(|s| s.len()).unwrap_or(0);
+
+                                GridCoordinate(index * 2 + offset + in_node_offset / 2 + 1)
                             })
                             .collect();
 
@@ -151,10 +164,10 @@ where
                                     .iter()
                                     .take(x)
                                     .filter(|id| id.is_user())
-                                    .map(|id| format!("{}", id.id()).len().saturating_sub(1))
+                                    .map(|id| node_names.get(id.id()).map(|n| n.len()).unwrap_or(0))
                                     .sum();
 
-                                targets.push(GridCoordinate(x * 5 + 2 + offset));
+                                targets.push(GridCoordinate(x * 2 + offset + 1));
                             }
                         }
 
@@ -186,6 +199,7 @@ where
         level: &[LevelEntry<'g, ID>],
         result: &mut InnerGrid<'g, ID>,
         mut horizontals: Vec<Horizontal<'g, ID>>,
+        node_names: &HashMap<&ID, String>,
     ) {
         horizontals.sort_by_key(|h| h.targets.len());
 
@@ -198,15 +212,12 @@ where
             for entry in level.iter() {
                 cursor.set(Entry::Empty);
                 match &entry {
-                    LevelEntry::User(_) => {
-                        cursor.set(Entry::OpenParen);
-                        cursor.set_node(entry.clone());
-                        cursor.set(Entry::CloseParen);
+                    LevelEntry::User(id) => {
+                        let name = node_names.get(id).expect("");
+                        cursor.set_node(entry.clone(), name);
                     }
                     LevelEntry::Dummy { .. } => {
-                        cursor.set(Entry::Empty);
-                        cursor.set_node(entry.clone());
-                        cursor.set(Entry::Empty);
+                        cursor.set_node(entry.clone(), "");
                     }
                 };
 
@@ -284,7 +295,14 @@ where
         agraph: &AcyclicDirectedGraph<'g, ID, T>,
         levels: Vec<Vec<&'g ID>>,
         reved_edges: Vec<(&'g ID, &'g ID)>,
+        nfmt: &dyn NodeFormatter<ID, T>,
     ) -> Self {
+        let names: HashMap<&'g ID, String> = agraph
+            .nodes
+            .iter()
+            .map(|(id, value)| (*id, nfmt.format_node(*id, value)))
+            .collect();
+
         // TODO
         // Figure out how to correctly incorporate the reversed Edges into the generated Grid
         let _ = reved_edges;
@@ -301,7 +319,7 @@ where
 
         let mut result = InnerGrid::new();
 
-        let horizontal = Self::generate_horizontals(agraph, &mut levels);
+        let horizontal = Self::generate_horizontals(agraph, &mut levels, &names);
 
         let mut y = 0;
         for (level, horizontals) in levels.iter().enumerate().map(|(y, l)| {
@@ -313,13 +331,16 @@ where
                     .unwrap_or_else(Vec::new),
             )
         }) {
-            Self::connect_layer(&mut y, level, &mut result, horizontals);
+            Self::connect_layer(&mut y, level, &mut result, horizontals, &names);
         }
 
-        Self { inner: result }
+        Self {
+            inner: result,
+            names,
+        }
     }
 
-    pub fn display(&self) {
+    pub fn display<T>(&self, nfmt: &dyn NodeFormatter<ID, T>) {
         let mut colors = HashMap::new();
         let mut current_color = 30;
 
@@ -336,7 +357,7 @@ where
 
         for row in &self.inner.inner {
             for entry in row {
-                entry.display(&mut get_color);
+                entry.display(&mut get_color, |id| self.names.get(id).unwrap().clone());
             }
             println!();
         }

@@ -1,6 +1,8 @@
-use termgraph::DirectedGraph;
+use termgraph::{DefaultFormatter, DirectedGraph};
 
 fn main() {
+    let formatter = DefaultFormatter::new();
+
     let graph = {
         let mut tmp = DirectedGraph::new();
 
@@ -9,5 +11,5 @@ fn main() {
 
         tmp
     };
-    termgraph::display(&graph, 3);
+    termgraph::display(&graph, 3, &formatter);
 }

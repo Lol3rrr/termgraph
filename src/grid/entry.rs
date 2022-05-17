@@ -65,13 +65,11 @@ where
     }
 }
 
-impl<'g, ID> Entry<'g, ID>
-where
-    ID: Display,
-{
-    pub fn display<C>(&self, get_color: &mut C)
+impl<'g, ID> Entry<'g, ID> {
+    pub fn display<C, N>(&self, get_color: &mut C, get_name: N)
     where
         C: FnMut(&'g ID) -> usize,
+        N: FnOnce(&'g ID) -> String,
     {
         match self {
             Entry::Empty => print!(" "),
@@ -97,7 +95,7 @@ where
             },
             Entry::Node(_, part) if *part > 0 => {}
             Entry::Node(id, _) => match id {
-                LevelEntry::User(id) => print!("{}", id),
+                LevelEntry::User(id) => print!("{}", get_name(id)),
                 LevelEntry::Dummy { from, .. } => {
                     let color = get_color(*from);
                     print!("\x1b[{}m|\x1b[0m", color)
