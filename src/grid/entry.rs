@@ -1,4 +1,4 @@
-use std::{fmt::Debug, ops::Add};
+use std::{fmt::Display, ops::Add};
 
 use super::LevelEntry;
 
@@ -67,7 +67,7 @@ where
 
 impl<'g, ID> Entry<'g, ID>
 where
-    ID: Debug,
+    ID: Display,
 {
     pub fn display<C>(&self, get_color: &mut C)
     where
@@ -97,7 +97,7 @@ where
             },
             Entry::Node(_, part) if *part > 0 => {}
             Entry::Node(id, _) => match id {
-                LevelEntry::User(id) => print!("{:?}", id),
+                LevelEntry::User(id) => print!("{}", id),
                 LevelEntry::Dummy { from, .. } => {
                     let color = get_color(*from);
                     print!("\x1b[{}m|\x1b[0m", color)

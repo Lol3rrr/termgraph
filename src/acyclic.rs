@@ -177,7 +177,7 @@ where
 
     pub fn topological_sort(&self) -> Vec<&'g ID>
     where
-        ID: Hash + Eq + Debug,
+        ID: Hash + Eq,
     {
         let incoming = self.incoming_mapping();
 

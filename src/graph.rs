@@ -30,7 +30,7 @@ pub struct DirectedGraph<ID, T> {
 
 impl<ID, T> DirectedGraph<ID, T>
 where
-    ID: Hash + Eq + Debug,
+    ID: Hash + Eq,
 {
     /// Creates a new empty Graph
     pub fn new() -> Self {
@@ -132,7 +132,7 @@ where
 
 impl<ID, T> Default for DirectedGraph<ID, T>
 where
-    ID: Hash + Eq + Debug,
+    ID: Hash + Eq,
 {
     fn default() -> Self {
         Self::new()

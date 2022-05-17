@@ -23,7 +23,7 @@
 //! ```
 
 mod graph;
-use std::{collections::HashMap, fmt::Debug, hash::Hash};
+use std::{collections::HashMap, fmt::Display, hash::Hash};
 
 use acyclic::MinimalAcyclicDirectedGraph;
 pub use graph::DirectedGraph;
@@ -37,8 +37,11 @@ mod grid;
 ///
 /// # Usage
 /// 1. Construct a [`DirectedGraph`] from your own Data-Structure
-/// 2. Pass the Graph to this function, along with the maximum number of Nodes
-/// that should be displayed on a single line
+/// 2. Pass the Graph to this function, along with the maximum number of Nodes that should be
+/// displayed on a single line
+///
+/// # Format
+/// For every Node, it will display its ID not its Value
 ///
 /// # Example
 /// ```rust
@@ -52,7 +55,7 @@ mod grid;
 /// ```
 pub fn display<ID, T>(graph: &DirectedGraph<ID, T>, max_per_level: usize)
 where
-    ID: Hash + Eq + Debug,
+    ID: Hash + Eq + Display,
 {
     if graph.is_empty() {
         return;
@@ -74,7 +77,7 @@ fn levels<'g, ID, T>(
     max_per_level: usize,
 ) -> Vec<Vec<&'g ID>>
 where
-    ID: Hash + Eq + Debug,
+    ID: Hash + Eq,
 {
     let reduced = agraph.transitive_reduction();
 
@@ -89,7 +92,7 @@ fn assign_levels<'g, ID, T>(
     max_per_level: usize,
 ) -> Vec<Vec<&'g ID>>
 where
-    ID: Hash + Eq + Debug,
+    ID: Hash + Eq,
 {
     let mut levels: Vec<Vec<&'g ID>> = Vec::new();
     let mut vertex_levels: HashMap<&'g ID, usize> = HashMap::new();

@@ -1,4 +1,8 @@
-use std::{collections::HashMap, fmt::Debug, hash::Hash};
+use std::{
+    collections::HashMap,
+    fmt::{Debug, Display},
+    hash::Hash,
+};
 
 use crate::acyclic::AcyclicDirectedGraph;
 
@@ -62,7 +66,7 @@ where
 
 impl<'g, ID> Grid<'g, ID>
 where
-    ID: Hash + Eq + Debug,
+    ID: Hash + Eq + Display,
 {
     fn generate_horizontals<T>(
         agraph: &AcyclicDirectedGraph<'g, ID, T>,
@@ -90,7 +94,7 @@ where
                             .iter()
                             .take(raw_x)
                             .filter(|id| id.is_user())
-                            .map(|id| format!("{:?}", id.id()).len().saturating_sub(1))
+                            .map(|id| format!("{}", id.id()).len().saturating_sub(1))
                             .sum();
 
                         (GridCoordinate(raw_x * 5 + 2 + offset), e)
@@ -106,7 +110,7 @@ where
                                     .iter()
                                     .take(*index)
                                     .filter(|id| id.is_user())
-                                    .map(|id| format!("{:?}", id.id()).len().saturating_sub(1))
+                                    .map(|id| format!("{}", id.id()).len().saturating_sub(1))
                                     .sum();
 
                                 GridCoordinate(index * 5 + 2 + offset)
@@ -147,7 +151,7 @@ where
                                     .iter()
                                     .take(x)
                                     .filter(|id| id.is_user())
-                                    .map(|id| format!("{:?}", id.id()).len().saturating_sub(1))
+                                    .map(|id| format!("{}", id.id()).len().saturating_sub(1))
                                     .sum();
 
                                 targets.push(GridCoordinate(x * 5 + 2 + offset));
