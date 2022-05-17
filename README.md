@@ -11,4 +11,4 @@ be useful for others when working with graphs in Rust, which can already be hard
 To see how you can use this, see the Documentation or the examples in the /examples/ folder.
 
 ## Example
-![Example Graph](https://raw.githubusercontent.com/Lol3rrr/termgraph/master/assets/example.svg | height=200)
+![Example Graph](https://raw.githubusercontent.com/Lol3rrr/termgraph/master/assets/example.svg)
