@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fmt::Debug, hash::Hash};
 
-use crate::{acyclic::AcyclicDirectedGraph, NodeFormatter};
+use crate::{acyclic::AcyclicDirectedGraph, Color, NodeFormatter};
 
 mod entry;
 pub use entry::Entry;
@@ -336,19 +336,20 @@ where
         }
     }
 
-    pub fn display(&self) {
+    pub fn display(&self, color_palette: Option<&Vec<Color>>) {
         let mut colors = HashMap::new();
-        let mut current_color = 30;
+        let mut current_color = 0;
 
         let mut get_color = |id: &'g ID| {
+            let color_p = color_palette.as_ref()?;
+
             let entry = colors.entry(id);
             let color = entry.or_insert_with(|| {
                 current_color += 1;
-                current_color = ((current_color - 30) % 8) + 31;
-                current_color
+                color_p[current_color % color_p.len()].clone()
             });
 
-            *color
+            Some(usize::from(color.clone()))
         };
 
         for row in &self.inner.inner {

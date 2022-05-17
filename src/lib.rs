@@ -38,6 +38,9 @@ mod grid;
 mod formatter;
 pub use formatter::{IDFormatter, NodeFormatter, ValueFormatter};
 
+mod config;
+pub use config::{Color, Config};
+
 /// This is used to output the given Graph to the Terminal
 ///
 /// # Usage
@@ -59,11 +62,8 @@ pub use formatter::{IDFormatter, NodeFormatter, ValueFormatter};
 ///
 /// termgraph::display(&graph, 2, &formatter);
 /// ```
-pub fn display<ID, T>(
-    graph: &DirectedGraph<ID, T>,
-    max_per_level: usize,
-    nfmt: &dyn NodeFormatter<ID, T>,
-) where
+pub fn display<ID, T>(graph: &DirectedGraph<ID, T>, config: &Config<ID, T>)
+where
     ID: Hash + Eq + Display,
 {
     if graph.is_empty() {
@@ -71,13 +71,13 @@ pub fn display<ID, T>(
     }
 
     let (agraph, reved_edges) = graph.to_acyclic();
-    let levels = levels(&agraph, max_per_level);
+    let levels = levels(&agraph, config.max_per_layer);
 
     // TODO
     // Perform permutations on each Level to reduce the crossings of different Paths
 
-    let grid = grid::Grid::construct(&agraph, levels, reved_edges, nfmt);
-    grid.display();
+    let grid = grid::Grid::construct(&agraph, levels, reved_edges, config.formatter.as_ref());
+    grid.display(config.color_palette.as_ref());
     println!();
 }
 
