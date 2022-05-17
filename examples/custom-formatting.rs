@@ -19,14 +19,14 @@ fn main() {
     graph.add_edges([(0, 1), (1, 2)]);
 
     println!("ID Formatter:");
-    let id_config = Config::new(IDFormatter::new(), 3);
+    let id_config = Config::new(IDFormatter::new(), 3).default_colors();
     termgraph::display(&graph, &id_config);
 
     println!("Value Formatter");
-    let value_config = Config::new(ValueFormatter::new(), 3);
+    let value_config = Config::new(ValueFormatter::new(), 3).default_colors();
     termgraph::display(&graph, &value_config);
 
     println!("Bare Formatter:");
-    let bare_config = Config::new(BareFormatter {}, 3);
+    let bare_config = Config::new(BareFormatter {}, 3).default_colors();
     termgraph::display(&graph, &bare_config);
 }

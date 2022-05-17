@@ -10,7 +10,7 @@ fn main() {
         tmp
     };
 
-    let config = Config::new(IDFormatter::new(), 3);
+    let config = Config::new(IDFormatter::new(), 3).default_colors();
 
     termgraph::display(&graph, &config);
 }

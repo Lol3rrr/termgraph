@@ -1,7 +1,7 @@
 use termgraph::{Config, DirectedGraph, IDFormatter};
 
 fn main() {
-    let config = Config::new(IDFormatter::new(), 3);
+    let config = Config::new(IDFormatter::new(), 3).default_colors();
 
     let display_graph = {
         let mut tmp: DirectedGraph<usize, &str> = DirectedGraph::new();

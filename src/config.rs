@@ -12,6 +12,9 @@ pub enum Color {
     Blue,
     Magenta,
     Cyan,
+    /// This allows for custom ANSI Colors to be specified, the specified Color Code will not be
+    /// valided and the User of this API needs to make sure that its a valid code
+    Custom(usize),
 }
 
 impl From<Color> for usize {
@@ -25,6 +28,7 @@ impl From<Color> for usize {
             Color::Blue => 34,
             Color::Magenta => 35,
             Color::Cyan => 36,
+            Color::Custom(c) => c,
         }
     }
 }
@@ -44,7 +48,8 @@ pub struct Config<ID, T> {
 }
 
 impl<ID, T> Config<ID, T> {
-    /// Creates a new Config with the given Parameters
+    /// Creates a new Config with the given Parameters. By default Colors are not enabled and need
+    /// to explictly be enabled by either setting the default colors or specifing a custom color-platte
     pub fn new<F>(nfmt: F, max_per_layer: usize) -> Self
     where
         F: NodeFormatter<ID, T> + 'static,
