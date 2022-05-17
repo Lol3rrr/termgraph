@@ -1,7 +1,4 @@
-use std::{
-    fmt::{Debug, Display},
-    ops::Add,
-};
+use std::{fmt::Debug, ops::Add};
 
 use super::{Entry, LevelEntry};
 
@@ -94,26 +91,34 @@ pub struct Cursor<'r, 'g, ID> {
 
 impl<'r, 'g, ID> Cursor<'r, 'g, ID>
 where
-    ID: PartialEq + Display,
+    ID: PartialEq,
 {
     /// Returns the Middle Index of the Node
-    pub fn set_node(&mut self, entry: LevelEntry<'g, ID>) -> GridCoordinate {
-        let length = format!("{}", entry.id()).len();
+    pub fn set_node(&mut self, entry: LevelEntry<'g, ID>, name: &str) -> GridCoordinate {
+        let length = name.len();
 
         let last_x = self.x + length;
         while self.row.len() <= last_x {
             self.row.push(Entry::Empty);
         }
 
-        for part in 0..length {
+        if entry.is_user() {
+            for part in 0..length {
+                let target = self.row.get_mut(self.x).unwrap();
+                *target = &target + Entry::Node(entry.clone(), part);
+
+                self.x += 1;
+            }
+        } else {
             let target = self.row.get_mut(self.x).unwrap();
-            *target = &target + Entry::Node(entry.clone(), part);
+            *target = &target + Entry::Node(entry.clone(), 0);
 
             self.x += 1;
         }
 
         GridCoordinate(self.x - ((length + 1) / 2))
     }
+
     pub fn set(&mut self, entry: Entry<'g, ID>) -> usize {
         while self.row.len() <= self.x {
             self.row.push(Entry::Empty);

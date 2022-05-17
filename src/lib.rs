@@ -13,14 +13,16 @@
 //!
 //! # Example
 //! ```rust
-//! use termgraph::DirectedGraph;
+//! use termgraph::{DirectedGraph, DefaultFormatter};
 //!
+//! let formatter = DefaultFormatter::new();
 //! let mut graph = DirectedGraph::new();
 //! graph.add_nodes([(0, "first"), (1, "second"), (2, "third")]);
 //! graph.add_edges([(0, 1), (0,2), (1, 2)]);
 //!
-//! termgraph::display(&graph, 2);
+//! termgraph::display(&graph, 2, &formatter);
 //! ```
+#![warn(missing_docs)]
 
 mod graph;
 use std::{collections::HashMap, fmt::Display, hash::Hash};
@@ -32,6 +34,9 @@ mod acyclic;
 pub(crate) use acyclic::AcyclicDirectedGraph;
 
 mod grid;
+
+mod formatter;
+pub use formatter::{IDFormatter, NodeFormatter, ValueFormatter};
 
 /// This is used to output the given Graph to the Terminal
 ///
@@ -45,16 +50,20 @@ mod grid;
 ///
 /// # Example
 /// ```rust
-/// use termgraph::DirectedGraph;
+/// use termgraph::{DirectedGraph, DefaultFormatter};
 ///
+/// let formatter = DefaultFormatter::new();
 /// let mut graph = DirectedGraph::new();
 /// graph.add_nodes([(0, "first"), (1, "second"), (2, "third")]);
 /// graph.add_edges([(0, 1), (0,2), (1, 2)]);
 ///
-/// termgraph::display(&graph, 2);
+/// termgraph::display(&graph, 2, &formatter);
 /// ```
-pub fn display<ID, T>(graph: &DirectedGraph<ID, T>, max_per_level: usize)
-where
+pub fn display<ID, T>(
+    graph: &DirectedGraph<ID, T>,
+    max_per_level: usize,
+    nfmt: &dyn NodeFormatter<ID, T>,
+) where
     ID: Hash + Eq + Display,
 {
     if graph.is_empty() {
@@ -67,7 +76,7 @@ where
     // TODO
     // Perform permutations on each Level to reduce the crossings of different Paths
 
-    let grid = grid::Grid::construct(&agraph, levels, reved_edges);
+    let grid = grid::Grid::construct(&agraph, levels, reved_edges, nfmt);
     grid.display();
     println!();
 }
