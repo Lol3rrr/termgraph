@@ -13,9 +13,9 @@
 //!
 //! # Example
 //! ```rust
-//! use termgraph::{DirectedGraph, DefaultFormatter};
+//! use termgraph::{DirectedGraph, IDFormatter};
 //!
-//! let formatter = DefaultFormatter::new();
+//! let formatter = IDFormatter::new();
 //! let mut graph = DirectedGraph::new();
 //! graph.add_nodes([(0, "first"), (1, "second"), (2, "third")]);
 //! graph.add_edges([(0, 1), (0,2), (1, 2)]);
@@ -50,9 +50,9 @@ pub use formatter::{IDFormatter, NodeFormatter, ValueFormatter};
 ///
 /// # Example
 /// ```rust
-/// use termgraph::{DirectedGraph, DefaultFormatter};
+/// use termgraph::{DirectedGraph, IDFormatter};
 ///
-/// let formatter = DefaultFormatter::new();
+/// let formatter = IDFormatter::new();
 /// let mut graph = DirectedGraph::new();
 /// graph.add_nodes([(0, "first"), (1, "second"), (2, "third")]);
 /// graph.add_edges([(0, 1), (0,2), (1, 2)]);
