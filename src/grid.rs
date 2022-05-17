@@ -1,8 +1,4 @@
-use std::{
-    collections::HashMap,
-    fmt::{Debug, Display},
-    hash::Hash,
-};
+use std::{collections::HashMap, fmt::Debug, hash::Hash};
 
 use crate::{acyclic::AcyclicDirectedGraph, NodeFormatter};
 
@@ -340,7 +336,7 @@ where
         }
     }
 
-    pub fn display<T>(&self, nfmt: &dyn NodeFormatter<ID, T>) {
+    pub fn display(&self) {
         let mut colors = HashMap::new();
         let mut current_color = 30;
 

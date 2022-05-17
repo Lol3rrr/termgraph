@@ -1,4 +1,4 @@
-use std::{fmt::Display, ops::Add};
+use std::ops::Add;
 
 use super::LevelEntry;
 

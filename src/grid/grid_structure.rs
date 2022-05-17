@@ -1,7 +1,4 @@
-use std::{
-    fmt::{Debug, Display},
-    ops::Add,
-};
+use std::{fmt::Debug, ops::Add};
 
 use super::{Entry, LevelEntry};
 

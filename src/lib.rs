@@ -76,7 +76,7 @@ pub fn display<ID, T>(
     // Perform permutations on each Level to reduce the crossings of different Paths
 
     let grid = grid::Grid::construct(&agraph, levels, reved_edges, nfmt);
-    grid.display(nfmt);
+    grid.display();
     println!();
 }
 
