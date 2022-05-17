@@ -8,11 +8,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - name: Tests before
+    - name: Run Tests
       run: cargo test
   lint:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - name: Tests before
+    - name: Run Clippy
       run: cargo clippy 
