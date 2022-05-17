@@ -6,6 +6,7 @@ use std::{
 
 use crate::acyclic::AcyclicDirectedGraph;
 
+mod feedback_arc_set;
 mod tarjan;
 
 /// A Directed Graph that can be displayed using [`display`](crate::display)
