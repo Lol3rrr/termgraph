@@ -10,6 +10,18 @@ mod feedback_arc_set;
 mod tarjan;
 
 /// A Directed Graph that can be displayed using [`display`](crate::display)
+///
+/// This is a simple representation of a Graph, where simply store the Vertices and the Edges
+/// between them.
+///
+/// # Example
+/// ```rust
+/// # use termgraph::DirectedGraph;
+/// #
+/// let mut graph = DirectedGraph::new();
+/// graph.add_nodes([(0, "first"), (1, "second"), (2, "third")]);
+/// graph.add_edges([(0, 1), (1, 2)]);
+/// ```
 #[derive(Debug)]
 pub struct DirectedGraph<ID, T> {
     nodes: HashMap<ID, T>,
@@ -20,6 +32,7 @@ impl<ID, T> DirectedGraph<ID, T>
 where
     ID: Hash + Eq + Debug,
 {
+    /// Creates a new empty Graph
     pub fn new() -> Self {
         Self {
             nodes: HashMap::new(),
@@ -27,6 +40,7 @@ where
         }
     }
 
+    /// Adds the Nodes to the Graph
     pub fn add_nodes<I>(&mut self, iter: I)
     where
         I: IntoIterator<Item = (ID, T)>,
@@ -36,6 +50,10 @@ where
         }
     }
 
+    /// Adds the given Edges to the Graph
+    ///
+    /// # Input
+    /// The Tuples returned by the Iterator should be in the Format (src, target)
     pub fn add_edges<I>(&mut self, iter: I)
     where
         I: IntoIterator<Item = (ID, ID)>,

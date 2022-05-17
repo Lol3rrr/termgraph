@@ -1,5 +1,4 @@
-//! Based on this Algorithm
-//! https://en.wikipedia.org/wiki/Tarjan%27s_strongly_connected_components_algorithm
+//! Based on this [Algorithm](https://en.wikipedia.org/wiki/Tarjan%27s_strongly_connected_components_algorithm)
 
 use std::{
     collections::{HashMap, HashSet},

@@ -1,4 +1,26 @@
 //! A Crate to output graphs on the Terminal
+//!
+//! # Intended Use-Case
+//! This is mostly intended to help in developing other Software that uses Graphs and needs a way
+//! to easily display them, either during Debugging or as Output to display to the User.
+//!
+//! # Limitations
+//! ## Cycles
+//! Although it currently accepts cycles in the Graph, it does not really handle cycles all to well
+//! and it can lead to rather confusing output. This should be improved in future releases and is
+//! a known pain-point. However even with this limitation, this library should still have plenty of
+//! useful use-cases.
+//!
+//! # Example
+//! ```rust
+//! use termgraph::DirectedGraph;
+//!
+//! let mut graph = DirectedGraph::new();
+//! graph.add_nodes([(0, "first"), (1, "second"), (2, "third")]);
+//! graph.add_edges([(0, 1), (0,2), (1, 2)]);
+//!
+//! termgraph::display(&graph, 2);
+//! ```
 
 mod graph;
 use std::{collections::HashMap, fmt::Debug, hash::Hash};
