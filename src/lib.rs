@@ -22,6 +22,7 @@
 //!
 //! termgraph::display(&graph, 2, &formatter);
 //! ```
+#![warn(missing_docs)]
 
 mod graph;
 use std::{collections::HashMap, fmt::Display, hash::Hash};
