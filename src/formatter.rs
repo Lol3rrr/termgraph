@@ -6,27 +6,52 @@ pub trait NodeFormatter<ID, T> {
     fn format_node(&self, id: &ID, value: &T) -> String;
 }
 
-/// The Default Formatter for Nodes in the Graph
-pub struct DefaultFormatter {}
+/// Returns the ID for Formatting
+pub struct IDFormatter {}
 
-impl DefaultFormatter {
-    /// Creates a new Instance of the DefaultFormatter
+impl IDFormatter {
+    /// Creates a new Instance of the Formatter
     pub fn new() -> Self {
         Self {}
     }
 }
 
-impl Default for DefaultFormatter {
+impl Default for IDFormatter {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<ID, T> NodeFormatter<ID, T> for DefaultFormatter
+impl<ID, T> NodeFormatter<ID, T> for IDFormatter
 where
     ID: Display,
 {
     fn format_node(&self, id: &ID, _: &T) -> String {
         format!("({})", id)
+    }
+}
+
+/// Returns the Value for Formatting
+pub struct ValueFormatter {}
+
+impl ValueFormatter {
+    /// Creates a new Instance of the Formatter
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl Default for ValueFormatter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<ID, T> NodeFormatter<ID, T> for ValueFormatter
+where
+    T: Display,
+{
+    fn format_node(&self, _: &ID, value: &T) -> String {
+        format!("({})", value)
     }
 }

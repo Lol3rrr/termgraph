@@ -1,7 +1,7 @@
-use termgraph::{DefaultFormatter, DirectedGraph};
+use termgraph::{DirectedGraph, IDFormatter};
 
 fn main() {
-    let formatter = DefaultFormatter::new();
+    let formatter = IDFormatter::new();
 
     let display_graph = {
         let mut tmp: DirectedGraph<usize, String> = DirectedGraph::new();

@@ -36,7 +36,7 @@ pub(crate) use acyclic::AcyclicDirectedGraph;
 mod grid;
 
 mod formatter;
-pub use formatter::{DefaultFormatter, NodeFormatter};
+pub use formatter::{IDFormatter, NodeFormatter, ValueFormatter};
 
 /// This is used to output the given Graph to the Terminal
 ///
