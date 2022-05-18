@@ -48,7 +48,7 @@ pub struct Config<ID, T> {
 }
 
 impl<ID, T> Config<ID, T> {
-    /// Creates a new Config with the given Formatter and Layer-Size
+    /// Creates a new Config with the given Formatter and maximum number of Nodes per Horizontal Layer
     ///
     /// # Default Values
     /// * Colors: disabled
@@ -61,6 +61,21 @@ impl<ID, T> Config<ID, T> {
             color_palette: None,
             max_per_layer,
         }
+    }
+
+    /// Sets the Formatter of this Configuration to the provided one
+    pub fn formatter<F>(mut self, nfmt: F) -> Self
+    where
+        F: NodeFormatter<ID, T> + 'static,
+    {
+        self.formatter = Box::new(nfmt);
+        self
+    }
+
+    /// Updates the Number of Nodes that should be placed on a single horizontal Layer at most
+    pub fn max_per_layer(mut self, count: usize) -> Self {
+        self.max_per_layer = count;
+        self
     }
 
     /// Sets the Color-Palette to the default Color-Palette
