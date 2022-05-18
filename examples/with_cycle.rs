@@ -1,8 +1,6 @@
-use termgraph::{DirectedGraph, IDFormatter};
+use termgraph::{Config, DirectedGraph, IDFormatter};
 
 fn main() {
-    let formatter = IDFormatter::new();
-
     let graph = {
         let mut tmp = DirectedGraph::new();
 
@@ -11,5 +9,8 @@ fn main() {
 
         tmp
     };
-    termgraph::display(&graph, 3, &formatter);
+
+    let config = Config::new(IDFormatter::new(), 3).default_colors();
+
+    termgraph::display(&graph, &config);
 }

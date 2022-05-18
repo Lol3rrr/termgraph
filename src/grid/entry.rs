@@ -68,38 +68,38 @@ where
 impl<'g, ID> Entry<'g, ID> {
     pub fn display<C, N>(&self, get_color: &mut C, get_name: N)
     where
-        C: FnMut(&'g ID) -> usize,
+        C: FnMut(&'g ID) -> Option<usize>,
         N: FnOnce(&'g ID) -> String,
     {
         match self {
             Entry::Empty => print!(" "),
             Entry::OpenParen => print!("("),
             Entry::CloseParen => print!(")"),
-            Entry::Horizontal(src) => {
-                let color = get_color(*src);
-                print!("\x1b[{}m-\x1b[0m", color)
-            }
+            Entry::Horizontal(src) => match get_color(*src) {
+                Some(c) => print!("\x1b[{}m-\x1b[0m", c),
+                None => print!("-"),
+            },
             Entry::Veritcal(src) => match src {
-                Some(src) => {
-                    let color = get_color(*src);
-                    print!("\x1b[{}m|\x1b[0m", color)
-                }
+                Some(src) => match get_color(*src) {
+                    Some(c) => print!("\x1b[{}m|\x1b[0m", c),
+                    None => print!("|"),
+                },
                 None => print!("|"),
             },
             Entry::Cross(src) => match src {
-                Some(src) => {
-                    let color = get_color(*src);
-                    print!("\x1b[{}m+\x1b[0m", color)
-                }
+                Some(src) => match get_color(*src) {
+                    Some(c) => print!("\x1b[{}m+\x1b[0m", c),
+                    None => print!("+"),
+                },
                 None => print!("+"),
             },
             Entry::Node(_, part) if *part > 0 => {}
             Entry::Node(id, _) => match id {
                 LevelEntry::User(id) => print!("{}", get_name(id)),
-                LevelEntry::Dummy { from, .. } => {
-                    let color = get_color(*from);
-                    print!("\x1b[{}m|\x1b[0m", color)
-                }
+                LevelEntry::Dummy { from, .. } => match get_color(*from) {
+                    Some(c) => print!("\x1b[{}m|\x1b[0m", c),
+                    None => print!("|"),
+                },
             },
         };
     }

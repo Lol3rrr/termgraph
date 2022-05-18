@@ -13,14 +13,14 @@
 //!
 //! # Example
 //! ```rust
-//! use termgraph::{DirectedGraph, IDFormatter};
+//! use termgraph::{DirectedGraph, IDFormatter, Config};
 //!
-//! let formatter = IDFormatter::new();
+//! let config = Config::new(IDFormatter::new(), 3);
 //! let mut graph = DirectedGraph::new();
 //! graph.add_nodes([(0, "first"), (1, "second"), (2, "third")]);
 //! graph.add_edges([(0, 1), (0,2), (1, 2)]);
 //!
-//! termgraph::display(&graph, 2, &formatter);
+//! termgraph::display(&graph, &config);
 //! ```
 #![warn(missing_docs)]
 
@@ -38,32 +38,28 @@ mod grid;
 mod formatter;
 pub use formatter::{IDFormatter, NodeFormatter, ValueFormatter};
 
+mod config;
+pub use config::{Color, Config};
+
 /// This is used to output the given Graph to the Terminal
 ///
 /// # Usage
 /// 1. Construct a [`DirectedGraph`] from your own Data-Structure
-/// 2. Pass the Graph to this function, along with the maximum number of Nodes that should be
-/// displayed on a single line
-///
-/// # Format
-/// For every Node, it will display its ID not its Value
+/// 2. Pass the Graph to this function along with a Configuration specifying how it looks
 ///
 /// # Example
 /// ```rust
-/// use termgraph::{DirectedGraph, IDFormatter};
+/// use termgraph::{DirectedGraph, IDFormatter, Config};
 ///
-/// let formatter = IDFormatter::new();
+/// let config = Config::new(IDFormatter::new(), 3);
 /// let mut graph = DirectedGraph::new();
 /// graph.add_nodes([(0, "first"), (1, "second"), (2, "third")]);
 /// graph.add_edges([(0, 1), (0,2), (1, 2)]);
 ///
-/// termgraph::display(&graph, 2, &formatter);
+/// termgraph::display(&graph, &config);
 /// ```
-pub fn display<ID, T>(
-    graph: &DirectedGraph<ID, T>,
-    max_per_level: usize,
-    nfmt: &dyn NodeFormatter<ID, T>,
-) where
+pub fn display<ID, T>(graph: &DirectedGraph<ID, T>, config: &Config<ID, T>)
+where
     ID: Hash + Eq + Display,
 {
     if graph.is_empty() {
@@ -71,13 +67,13 @@ pub fn display<ID, T>(
     }
 
     let (agraph, reved_edges) = graph.to_acyclic();
-    let levels = levels(&agraph, max_per_level);
+    let levels = levels(&agraph, config.max_per_layer);
 
     // TODO
     // Perform permutations on each Level to reduce the crossings of different Paths
 
-    let grid = grid::Grid::construct(&agraph, levels, reved_edges, nfmt);
-    grid.display();
+    let grid = grid::Grid::construct(&agraph, levels, reved_edges, config.formatter.as_ref());
+    grid.display(config.color_palette.as_ref());
     println!();
 }
 

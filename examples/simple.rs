@@ -1,21 +1,17 @@
-use termgraph::{DirectedGraph, IDFormatter};
+use termgraph::{Config, DirectedGraph, IDFormatter};
 
 fn main() {
-    let formatter = IDFormatter::new();
+    let config = Config::new(IDFormatter::new(), 3).default_colors();
 
     let display_graph = {
-        let mut tmp: DirectedGraph<usize, String> = DirectedGraph::new();
+        let mut tmp: DirectedGraph<usize, &str> = DirectedGraph::new();
 
-        tmp.add_nodes([
-            (0, "first".to_string()),
-            (1, "second".to_string()),
-            (2, "third".to_string()),
-        ]);
+        tmp.add_nodes([(0, "first"), (1, "second"), (2, "third")]);
         tmp.add_edges([(0, 1), (1, 2)]);
 
         tmp
     };
-    termgraph::display(&display_graph, 3, &formatter);
+    termgraph::display(&display_graph, &config);
 
     let branched_graph = {
         let mut tmp: DirectedGraph<usize, &str> = DirectedGraph::new();
@@ -25,7 +21,7 @@ fn main() {
 
         tmp
     };
-    termgraph::display(&branched_graph, 3, &formatter);
+    termgraph::display(&branched_graph, &config);
 
     let square_graph = {
         let mut tmp: DirectedGraph<usize, &str> = DirectedGraph::new();
@@ -35,7 +31,7 @@ fn main() {
 
         tmp
     };
-    termgraph::display(&square_graph, 3, &formatter);
+    termgraph::display(&square_graph, &config);
 
     let cross_level_branch = {
         let mut tmp: DirectedGraph<usize, &str> = DirectedGraph::new();
@@ -51,5 +47,5 @@ fn main() {
 
         tmp
     };
-    termgraph::display(&cross_level_branch, 3, &formatter);
+    termgraph::display(&cross_level_branch, &config);
 }

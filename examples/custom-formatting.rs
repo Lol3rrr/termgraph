@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use termgraph::{DirectedGraph, IDFormatter, NodeFormatter, ValueFormatter};
+use termgraph::{Config, DirectedGraph, IDFormatter, NodeFormatter, ValueFormatter};
 
 struct BareFormatter {}
 
@@ -19,11 +19,14 @@ fn main() {
     graph.add_edges([(0, 1), (1, 2)]);
 
     println!("ID Formatter:");
-    termgraph::display(&graph, 3, &IDFormatter::new());
+    let id_config = Config::new(IDFormatter::new(), 3).default_colors();
+    termgraph::display(&graph, &id_config);
 
     println!("Value Formatter");
-    termgraph::display(&graph, 3, &ValueFormatter::new());
+    let value_config = Config::new(ValueFormatter::new(), 3).default_colors();
+    termgraph::display(&graph, &value_config);
 
     println!("Bare Formatter:");
-    termgraph::display(&graph, 3, &BareFormatter {});
+    let bare_config = Config::new(BareFormatter {}, 3).default_colors();
+    termgraph::display(&graph, &bare_config);
 }
