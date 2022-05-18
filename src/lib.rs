@@ -45,11 +45,7 @@ pub use config::{Color, Config};
 ///
 /// # Usage
 /// 1. Construct a [`DirectedGraph`] from your own Data-Structure
-/// 2. Pass the Graph to this function, along with the maximum number of Nodes that should be
-/// displayed on a single line
-///
-/// # Format
-/// For every Node, it will display its ID not its Value
+/// 2. Pass the Graph to this function along with a Configuration specifying how it looks
 ///
 /// # Example
 /// ```rust
