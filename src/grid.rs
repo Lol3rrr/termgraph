@@ -129,6 +129,7 @@ where
                     .map(|(root, src_entry)| {
                         // Connect the Source to its Targets in the lower Level
 
+                        // An Iterator over the Successors of the src_entry
                         let succs: Box<dyn Iterator<Item = &ID>> = match src_entry {
                             LevelEntry::User(src_id) => {
                                 Box::new(agraph.successors(src_id).unwrap().iter().copied())
@@ -137,24 +138,29 @@ where
                         };
 
                         let targets = succs
-                            .map(|succ| (succ, second_entries.get(succ).copied()))
-                            .map(|(t_id, opt)| {
-                                let (index, in_node_offset) = match opt {
-                                    Some(i) => {
-                                        let in_node_offset =
-                                            node_names.get(t_id).map(|s| s.len()).unwrap_or(0);
-                                        (i, in_node_offset)
-                                    }
-                                    None => {
-                                        second.push(LevelEntry::Dummy {
-                                            from: src_entry.id(),
-                                            to: t_id,
-                                        });
+                            .map(|t_id| {
+                                let (index, in_node_offset) =
+                                    match second_entries.get(t_id).copied() {
+                                        Some(i) => {
+                                            // If the successor is in the next Layer, we already know its index and
+                                            // then also calculate the offset to point at the middle of the Target-Node
+                                            let in_node_offset =
+                                                node_names.get(t_id).map(|s| s.len()).unwrap_or(0);
+                                            (i, in_node_offset)
+                                        }
+                                        None => {
+                                            // The Successor is not in the next Layer, so we need to add a Dummy Node to
+                                            // target instead
+                                            second.push(LevelEntry::Dummy {
+                                                from: src_entry.id(),
+                                                to: t_id,
+                                            });
 
-                                        (second.len() - 1, 0)
-                                    }
-                                };
+                                            (second.len() - 1, 0)
+                                        }
+                                    };
 
+                                // Calculate the Offset until the Target
                                 let offset: usize = second
                                     .iter()
                                     .take(index)
@@ -162,6 +168,7 @@ where
                                     .map(|id| node_names.get(id.id()).map(|n| n.len()).unwrap_or(0))
                                     .sum();
 
+                                // Calculate the Coordinate of the Target
                                 GridCoordinate(index * 2 + offset + in_node_offset / 2 + 1)
                             })
                             .collect();
@@ -189,6 +196,7 @@ where
             .collect()
     }
 
+    /// This is used to actually "draw" the lines between two layers
     fn connect_layer(
         y: &mut usize,
         level: &[LevelEntry<'g, ID>],
@@ -302,6 +310,7 @@ where
         // Figure out how to correctly incorporate the reversed Edges into the generated Grid
         let _ = reved_edges;
 
+        // Convert all the previously generated Levels into the Levels we need for this step
         let mut levels: Vec<Vec<LevelEntry<'g, ID>>> = levels
             .into_iter()
             .map(|inner_level| {
@@ -314,19 +323,20 @@ where
 
         let mut result = InnerGrid::new();
 
+        // We first generate all the horizontals to connect all the Levels
         let horizontal = Self::generate_horizontals(agraph, &mut levels, &names);
 
+        // An Iterator over all the Layers and the Horizontal connecting it to the Layer below
+        let level_horizontal_iter = levels.into_iter().zip(
+            horizontal
+                .into_iter()
+                .chain(std::iter::repeat_with(Vec::new)),
+        );
+
+        // Connect all the layers
         let mut y = 0;
-        for (level, horizontals) in levels.iter().enumerate().map(|(y, l)| {
-            (
-                l,
-                horizontal
-                    .get(y)
-                    .map(|h| h.to_owned())
-                    .unwrap_or_else(Vec::new),
-            )
-        }) {
-            Self::connect_layer(&mut y, level, &mut result, horizontals, &names);
+        for (level, horizontals) in level_horizontal_iter {
+            Self::connect_layer(&mut y, &level, &mut result, horizontals, &names);
         }
 
         Self {
