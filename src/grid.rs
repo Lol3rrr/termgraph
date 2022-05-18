@@ -129,73 +129,26 @@ where
                     .map(|(root, src_entry)| {
                         // Connect the Source to its Targets in the lower Level
 
-                        let targets = match src_entry {
+                        let succs: Box<dyn Iterator<Item = &ID>> = match src_entry {
                             LevelEntry::User(src_id) => {
-                                let succs = agraph.successors(src_id).unwrap();
-
-                                let targets: Vec<GridCoordinate> = succs
-                                    .iter()
-                                    .map(|succ| (*succ, second_entries.get(*succ).copied()))
-                                    .map(|(t_id, opt)| match opt {
-                                        Some(index) => {
-                                            let offset: usize = second
-                                                .iter()
-                                                .take(index)
-                                                .filter(|id| id.is_user())
-                                                .map(|id| {
-                                                    node_names
-                                                        .get(id.id())
-                                                        .map(|n| n.len())
-                                                        .unwrap_or(0)
-                                                })
-                                                .sum();
-
-                                            let in_node_offset =
-                                                node_names.get(t_id).map(|s| s.len()).unwrap_or(0);
-
-                                            GridCoordinate(
-                                                index * 2 + offset + in_node_offset / 2 + 1,
-                                            )
-                                        }
-                                        None => {
-                                            let index = second.len();
-
-                                            second.push(LevelEntry::Dummy {
-                                                from: src_entry.id(),
-                                                to: t_id,
-                                            });
-
-                                            let offset: usize = second
-                                                .iter()
-                                                .take(index)
-                                                .filter(|id| id.is_user())
-                                                .map(|id| {
-                                                    node_names
-                                                        .get(id.id())
-                                                        .map(|n| n.len())
-                                                        .unwrap_or(0)
-                                                })
-                                                .sum();
-
-                                            GridCoordinate(index * 2 + offset + 1)
-                                        }
-                                    })
-                                    .collect();
-
-                                targets
+                                Box::new(agraph.successors(src_id).unwrap().iter().copied())
                             }
-                            LevelEntry::Dummy { to, .. } => {
-                                let (x_index, in_node_offset) = match second_entries.get(to) {
-                                    Some(x_index) => {
-                                        let in_node_offset =
-                                            node_names.get(to).map(|s| s.len()).unwrap_or(0);
+                            LevelEntry::Dummy { to, .. } => Box::new(std::iter::once(*to)),
+                        };
 
-                                        (*x_index, in_node_offset)
+                        let targets = succs
+                            .map(|succ| (succ, second_entries.get(succ).copied()))
+                            .map(|(t_id, opt)| {
+                                let (index, in_node_offset) = match opt {
+                                    Some(i) => {
+                                        let in_node_offset =
+                                            node_names.get(t_id).map(|s| s.len()).unwrap_or(0);
+                                        (i, in_node_offset)
                                     }
                                     None => {
                                         second.push(LevelEntry::Dummy {
                                             from: src_entry.id(),
-                                            to,
+                                            to: t_id,
                                         });
 
                                         (second.len() - 1, 0)
@@ -204,21 +157,14 @@ where
 
                                 let offset: usize = second
                                     .iter()
-                                    .take(x_index)
-                                    .map(|s_entry| match s_entry {
-                                        LevelEntry::User(sid) => {
-                                            node_names.get(sid).map(|l| l.len()).unwrap_or(0)
-                                        }
-                                        LevelEntry::Dummy { .. } => 0,
-                                    })
+                                    .take(index)
+                                    .filter(|id| id.is_user())
+                                    .map(|id| node_names.get(id.id()).map(|n| n.len()).unwrap_or(0))
                                     .sum();
 
-                                let target =
-                                    GridCoordinate(x_index * 2 + offset + in_node_offset / 2 + 1);
-
-                                vec![target]
-                            }
-                        };
+                                GridCoordinate(index * 2 + offset + in_node_offset / 2 + 1)
+                            })
+                            .collect();
 
                         Horizontal {
                             x_coord: root,
