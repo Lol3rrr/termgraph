@@ -8,13 +8,17 @@ pub use entry::Entry;
 mod grid_structure;
 use grid_structure::*;
 
+/// A LevelEntry describes an entry in a given Level of the Graph
 #[derive(Debug)]
 pub enum LevelEntry<'g, ID> {
+    /// A User Entry is an actual Node from the Users graph, that should be displayed
     User(&'g ID),
+    /// A Dummy Entry is just a placeholder to easily support Edges that span multiple Levels
     Dummy { from: &'g ID, to: &'g ID },
 }
 
 impl<'g, ID> LevelEntry<'g, ID> {
+    /// The ID of the Source
     pub fn id(&self) -> &'g ID {
         match &self {
             Self::User(s) => *s,
@@ -22,6 +26,7 @@ impl<'g, ID> LevelEntry<'g, ID> {
         }
     }
 
+    /// Whether or not the Entry is a User-Entry
     pub fn is_user(&self) -> bool {
         matches!(self, Self::User(_))
     }
@@ -36,10 +41,15 @@ impl<'g, ID> Clone for LevelEntry<'g, ID> {
     }
 }
 
+/// A Horizontal is used to connect from a single Source in the upper layer to one or multiple
+/// Targets in the lower layer
 #[derive(Debug)]
 struct Horizontal<'g, ID> {
+    /// The X-Coordinate of the Source in the upper Level
     x_coord: GridCoordinate,
+    /// The ID of the Source
     src: &'g ID,
+    /// The X-Coordinates of the Targets in the lower Level
     targets: Vec<GridCoordinate>,
 }
 
@@ -53,11 +63,15 @@ impl<'g, ID> Clone for Horizontal<'g, ID> {
     }
 }
 
+/// The Grid which stores the generated Layout before displaying it to the User, which allows for
+/// easier construction as well as modifiying already placed Entries
 pub struct Grid<'g, ID>
 where
     ID: Eq + Hash,
 {
+    /// The actual Grid Data-Structure
     inner: InnerGrid<'g, ID>,
+    /// Maps from the IDs to the Names that should be displayed in the Graph
     names: HashMap<&'g ID, String>,
 }
 
@@ -65,6 +79,7 @@ impl<'g, ID> Grid<'g, ID>
 where
     ID: Hash + Eq,
 {
+    /// This is responsible for generating all the Horizontals needed for each Layer
     fn generate_horizontals<T>(
         agraph: &AcyclicDirectedGraph<'g, ID, T>,
         levels: &mut Vec<Vec<LevelEntry<'g, ID>>>,
@@ -75,9 +90,11 @@ where
                 let levels_slice = levels.as_mut_slice();
                 let (first_half, second_half) = levels_slice.split_at_mut(index + 1);
 
+                // The upper and lower level that need to be connected
                 let first = first_half.get_mut(index).expect("");
                 let second = second_half.get_mut(0).unwrap();
 
+                // The Entries in the second/lower level mapped to their respective X-Indices
                 let second_entries: HashMap<&ID, usize> = second
                     .iter()
                     .enumerate()
@@ -88,6 +105,9 @@ where
                     .iter()
                     .enumerate()
                     .map(|(raw_x, e)| {
+                        // Calculate the Source Coordinates
+
+                        // Calculate the Offset "generated" by the preceding Entries at the Level
                         let offset: usize = first
                             .iter()
                             .take(raw_x)
@@ -95,9 +115,10 @@ where
                             .map(|id| node_names.get(id.id()).map(|n| n.len()).unwrap_or(0))
                             .sum();
 
-                        let in_node_offset = node_names.get(e.id()).map(|s| s.len()).unwrap_or(0);
-
+                        // Caclulate the actual Coordinate based on the Entry itself as User and Dummy entries have slightly different behaviour
                         let cord = if e.is_user() {
+                            let in_node_offset =
+                                node_names.get(e.id()).map(|s| s.len()).unwrap_or(0);
                             raw_x * 2 + offset + in_node_offset / 2 + 1
                         } else {
                             raw_x * 2 + offset + 1
@@ -105,71 +126,103 @@ where
 
                         (GridCoordinate(cord), e)
                     })
-                    .map(|(root, entry)| {
-                        let succs = agraph.successors(entry.id()).unwrap();
+                    .map(|(root, src_entry)| {
+                        // Connect the Source to its Targets in the lower Level
 
-                        let mut targets: Vec<GridCoordinate> = succs
-                            .iter()
-                            .filter_map(|succ| second_entries.get(*succ).map(|i| (succ, i)))
-                            .map(|(t_id, index)| {
+                        let targets = match src_entry {
+                            LevelEntry::User(src_id) => {
+                                let succs = agraph.successors(src_id).unwrap();
+
+                                let targets: Vec<GridCoordinate> = succs
+                                    .iter()
+                                    .map(|succ| (*succ, second_entries.get(*succ).copied()))
+                                    .map(|(t_id, opt)| match opt {
+                                        Some(index) => {
+                                            let offset: usize = second
+                                                .iter()
+                                                .take(index)
+                                                .filter(|id| id.is_user())
+                                                .map(|id| {
+                                                    node_names
+                                                        .get(id.id())
+                                                        .map(|n| n.len())
+                                                        .unwrap_or(0)
+                                                })
+                                                .sum();
+
+                                            let in_node_offset =
+                                                node_names.get(t_id).map(|s| s.len()).unwrap_or(0);
+
+                                            GridCoordinate(
+                                                index * 2 + offset + in_node_offset / 2 + 1,
+                                            )
+                                        }
+                                        None => {
+                                            let index = second.len();
+
+                                            second.push(LevelEntry::Dummy {
+                                                from: src_entry.id(),
+                                                to: t_id,
+                                            });
+
+                                            let offset: usize = second
+                                                .iter()
+                                                .take(index)
+                                                .filter(|id| id.is_user())
+                                                .map(|id| {
+                                                    node_names
+                                                        .get(id.id())
+                                                        .map(|n| n.len())
+                                                        .unwrap_or(0)
+                                                })
+                                                .sum();
+
+                                            GridCoordinate(index * 2 + offset + 1)
+                                        }
+                                    })
+                                    .collect();
+
+                                targets
+                            }
+                            LevelEntry::Dummy { to, .. } => {
+                                let (x_index, in_node_offset) = match second_entries.get(to) {
+                                    Some(x_index) => {
+                                        let in_node_offset =
+                                            node_names.get(to).map(|s| s.len()).unwrap_or(0);
+
+                                        (*x_index, in_node_offset)
+                                    }
+                                    None => {
+                                        second.push(LevelEntry::Dummy {
+                                            from: src_entry.id(),
+                                            to,
+                                        });
+
+                                        (second.len() - 1, 0)
+                                    }
+                                };
+
                                 let offset: usize = second
                                     .iter()
-                                    .take(*index)
-                                    .filter(|id| id.is_user())
-                                    .map(|id| node_names.get(id.id()).map(|n| n.len()).unwrap_or(0))
+                                    .take(x_index)
+                                    .map(|s_entry| match s_entry {
+                                        LevelEntry::User(sid) => {
+                                            node_names.get(sid).map(|l| l.len()).unwrap_or(0)
+                                        }
+                                        LevelEntry::Dummy { .. } => 0,
+                                    })
                                     .sum();
 
-                                let in_node_offset =
-                                    node_names.get(t_id).map(|s| s.len()).unwrap_or(0);
+                                let target =
+                                    GridCoordinate(x_index * 2 + offset + in_node_offset / 2 + 1);
 
-                                GridCoordinate(index * 2 + offset + in_node_offset / 2 + 1)
-                            })
-                            .collect();
-
-                        let max_target = second.len() - 1;
-
-                        let succ_count = match &entry {
-                            LevelEntry::User(_) => succs.len(),
-                            LevelEntry::Dummy { to, .. } => {
-                                succs.iter().filter(|id| **id == *to).count()
+                                vec![target]
                             }
                         };
 
-                        if succ_count != targets.len() {
-                            let succ_targets: Box<dyn Iterator<Item = &ID>> = match &entry {
-                                LevelEntry::User(_) => Box::new(
-                                    succs
-                                        .iter()
-                                        .filter(|id| !second_entries.contains_key(*id))
-                                        .copied(),
-                                ),
-                                LevelEntry::Dummy { to, .. } => Box::new(std::iter::once(*to)),
-                            };
-
-                            let mut current_x = max_target;
-                            let x_pos_iter = succ_targets.map(|id| {
-                                current_x += 1;
-                                (id, current_x)
-                            });
-                            for (id, x) in x_pos_iter {
-                                second.push(LevelEntry::Dummy {
-                                    from: entry.id(),
-                                    to: id,
-                                });
-                                let offset: usize = second
-                                    .iter()
-                                    .take(x)
-                                    .filter(|id| id.is_user())
-                                    .map(|id| node_names.get(id.id()).map(|n| n.len()).unwrap_or(0))
-                                    .sum();
-
-                                targets.push(GridCoordinate(x * 2 + offset + 1));
-                            }
-                        }
-
                         Horizontal {
                             x_coord: root,
-                            src: entry.id(),
+                            src: src_entry.id(),
                             targets,
                         }
                     })
