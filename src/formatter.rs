@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 /// Specifies how the Nodes of the Graph should be formatted
-pub trait NodeFormatter<ID, T> {
+pub trait NodeFormat<ID, T> {
     /// Formats the given Node, the returned Value will be displayed in the Graph itself
     fn format_node(&self, id: &ID, value: &T) -> String;
 }
@@ -22,7 +22,7 @@ impl Default for IDFormatter {
     }
 }
 
-impl<ID, T> NodeFormatter<ID, T> for IDFormatter
+impl<ID, T> NodeFormat<ID, T> for IDFormatter
 where
     ID: Display,
 {
@@ -47,7 +47,7 @@ impl Default for ValueFormatter {
     }
 }
 
-impl<ID, T> NodeFormatter<ID, T> for ValueFormatter
+impl<ID, T> NodeFormat<ID, T> for ValueFormatter
 where
     T: Display,
 {

@@ -1,4 +1,4 @@
-use crate::NodeFormatter;
+use crate::NodeFormat;
 
 /// The Colors that can be displayed in the console
 #[allow(missing_docs)]
@@ -42,7 +42,7 @@ impl From<Color> for usize {
 /// let config: Config<usize, usize> = Config::new(IDFormatter::new(), 3).default_colors();
 /// ```
 pub struct Config<ID, T> {
-    pub(crate) formatter: Box<dyn NodeFormatter<ID, T>>,
+    pub(crate) formatter: Box<dyn NodeFormat<ID, T>>,
     pub(crate) color_palette: Option<Vec<Color>>,
     pub(crate) max_per_layer: usize,
 }
@@ -54,7 +54,7 @@ impl<ID, T> Config<ID, T> {
     /// * Colors: disabled
     pub fn new<F>(nfmt: F, max_per_layer: usize) -> Self
     where
-        F: NodeFormatter<ID, T> + 'static,
+        F: NodeFormat<ID, T> + 'static,
     {
         Self {
             formatter: Box::new(nfmt),
@@ -66,7 +66,7 @@ impl<ID, T> Config<ID, T> {
     /// Sets the Formatter of this Configuration to the provided one
     pub fn formatter<F>(mut self, nfmt: F) -> Self
     where
-        F: NodeFormatter<ID, T> + 'static,
+        F: NodeFormat<ID, T> + 'static,
     {
         self.formatter = Box::new(nfmt);
         self

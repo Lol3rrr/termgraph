@@ -1,10 +1,10 @@
 use std::fmt::Display;
 
-use termgraph::{Config, DirectedGraph, IDFormatter, NodeFormatter, ValueFormatter};
+use termgraph::{Config, DirectedGraph, IDFormatter, NodeFormat, ValueFormatter};
 
 struct BareFormatter {}
 
-impl<ID, T> NodeFormatter<ID, T> for BareFormatter
+impl<ID, T> NodeFormat<ID, T> for BareFormatter
 where
     ID: Display,
 {

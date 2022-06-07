@@ -36,7 +36,7 @@ pub(crate) use acyclic::AcyclicDirectedGraph;
 mod grid;
 
 mod formatter;
-pub use formatter::{IDFormatter, NodeFormatter, ValueFormatter};
+pub use formatter::{IDFormatter, NodeFormat, ValueFormatter};
 
 mod config;
 pub use config::{Color, Config};

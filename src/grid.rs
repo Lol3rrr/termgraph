@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fmt::Debug, hash::Hash};
 
-use crate::{acyclic::AcyclicDirectedGraph, Color, NodeFormatter};
+use crate::{acyclic::AcyclicDirectedGraph, Color, NodeFormat};
 
 mod entry;
 pub use entry::Entry;
@@ -294,11 +294,12 @@ where
         }
     }
 
+    /// Construct the Grid based on the given information about the levels and overall structure
     pub fn construct<T>(
         agraph: &AcyclicDirectedGraph<'g, ID, T>,
         levels: Vec<Vec<&'g ID>>,
         reved_edges: Vec<(&'g ID, &'g ID)>,
-        nfmt: &dyn NodeFormatter<ID, T>,
+        nfmt: &dyn NodeFormat<ID, T>,
     ) -> Self {
         let names: HashMap<&'g ID, String> = agraph
             .nodes
