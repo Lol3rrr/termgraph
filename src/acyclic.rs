@@ -18,6 +18,8 @@ where
         Self { nodes, edges }
     }
 
+    /// Performs a transitive reduction on the current acyclic graph. This means that all of the
+    /// Edges `a -> c` are removed if the Edges `a -> b` and `b -> c` exist.
     pub fn transitive_reduction(&self) -> MinimalAcyclicDirectedGraph<'g, ID, T> {
         let reachable = {
             let mut reachable: HashMap<&ID, HashSet<&ID>> = HashMap::new();
@@ -133,6 +135,11 @@ where
     }
 }
 
+/// This is an acyclic directed Graph that is transitively reduced so there should be no edges in
+/// the form `a -> c` if the edges `a -> b` and `b -> c` exist.
+///
+/// This form makes the level generation easier as we can basically attempt to assign all the
+/// successors of a node to the level below the node.
 #[derive(Debug)]
 pub struct MinimalAcyclicDirectedGraph<'g, ID, T> {
     pub(crate) inner: AcyclicDirectedGraph<'g, ID, T>,

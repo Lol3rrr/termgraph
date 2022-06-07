@@ -11,8 +11,9 @@ mod tarjan;
 
 /// A Directed Graph that can be displayed using [`display`](crate::display)
 ///
-/// This is a simple representation of a Graph, where simply store the Vertices and the Edges
-/// between them.
+/// This is a simple representation of a Graph based on adjacency lists.
+/// In most cases you would want to convert your graph representation into this representation
+/// for displaying purposes only.
 ///
 /// # Example
 /// ```rust
@@ -69,6 +70,8 @@ where
         }
     }
 
+    /// Converts the DirectedGraph into an AcyclicDirectedGraph and also returns a List of edges
+    /// that needed to be reversed to make the Graph acyclic.
     pub(crate) fn to_acyclic(&self) -> (AcyclicDirectedGraph<'_, ID, T>, Vec<(&ID, &ID)>) {
         let anodes: HashMap<_, _> = self.nodes.iter().collect();
         let mut aedges: HashMap<_, HashSet<_, _>> = self

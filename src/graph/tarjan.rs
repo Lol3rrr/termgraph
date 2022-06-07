@@ -12,6 +12,7 @@ struct NodeData {
     onstack: bool,
 }
 
+/// Calculates all the Strongly Connected Components of the given directed Graph
 pub fn sccs<'g, 'i, ID, T>(
     graph: (
         &'g HashMap<&'i ID, &'i T>,
