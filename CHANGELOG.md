@@ -1,6 +1,7 @@
 # Changelog
 
-# [0.2] - (Unreleased)
+# [0.2] - 7.6.2022
+This contains a large overhaul of the API so not every detail will be listed here.
 ## Changes
 * Introduced a Config, to allow for more customization
 * Added a custom Trait to format the Nodes in the Graph
