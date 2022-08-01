@@ -1,4 +1,8 @@
-use std::{collections::HashMap, fmt::Debug, hash::Hash};
+use std::{
+    collections::HashMap,
+    fmt::{Debug, Display},
+    hash::Hash,
+};
 
 use crate::{acyclic::AcyclicDirectedGraph, Color, NodeFormat};
 
@@ -77,7 +81,7 @@ where
 
 impl<'g, ID> Grid<'g, ID>
 where
-    ID: Hash + Eq,
+    ID: Hash + Eq + Display,
 {
     /// This is responsible for generating all the Horizontals needed for each Layer
     fn generate_horizontals<T>(
@@ -111,8 +115,13 @@ where
                         let offset: usize = first
                             .iter()
                             .take(raw_x)
-                            .filter(|id| id.is_user())
-                            .map(|id| node_names.get(id.id()).map(|n| n.len()).unwrap_or(0))
+                            .map(|id| {
+                                if id.is_user() {
+                                    node_names.get(id.id()).map(|n| n.len()).unwrap_or(0)
+                                } else {
+                                    1
+                                }
+                            })
                             .sum();
 
                         // Caclulate the actual Coordinate based on the Entry itself as User and Dummy entries have slightly different behaviour
@@ -164,8 +173,13 @@ where
                                 let offset: usize = second
                                     .iter()
                                     .take(index)
-                                    .filter(|id| id.is_user())
-                                    .map(|id| node_names.get(id.id()).map(|n| n.len()).unwrap_or(0))
+                                    .map(|id| {
+                                        if id.is_user() {
+                                            node_names.get(id.id()).map(|n| n.len()).unwrap_or(0)
+                                        } else {
+                                            1
+                                        }
+                                    })
                                     .sum();
 
                                 // Calculate the Coordinate of the Target

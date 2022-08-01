@@ -2,7 +2,7 @@ use crate::NodeFormat;
 
 /// The Colors that can be displayed in the console
 #[allow(missing_docs)]
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Color {
     Black,
     White,
