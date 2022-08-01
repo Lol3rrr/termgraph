@@ -1,5 +1,7 @@
 use std::ops::Add;
 
+use crate::LineGlyphs;
+
 use super::LevelEntry;
 
 pub enum Entry<'g, ID> {
@@ -66,7 +68,7 @@ where
 }
 
 impl<'g, ID> Entry<'g, ID> {
-    pub fn display<C, N>(&self, get_color: &mut C, get_name: N)
+    pub fn display<C, N>(&self, get_color: &mut C, get_name: N, glyphs: &LineGlyphs)
     where
         C: FnMut(&'g ID) -> Option<usize>,
         N: FnOnce(&'g ID) -> String,
@@ -76,22 +78,22 @@ impl<'g, ID> Entry<'g, ID> {
             Entry::OpenParen => print!("("),
             Entry::CloseParen => print!(")"),
             Entry::Horizontal(src) => match get_color(*src) {
-                Some(c) => print!("\x1b[{}m-\x1b[0m", c),
-                None => print!("-"),
+                Some(c) => print!("\x1b[{}m{}\x1b[0m", c, glyphs.horizontal),
+                None => print!("{}", glyphs.horizontal),
             },
             Entry::Veritcal(src) => match src {
                 Some(src) => match get_color(*src) {
-                    Some(c) => print!("\x1b[{}m|\x1b[0m", c),
-                    None => print!("|"),
+                    Some(c) => print!("\x1b[{}m{}\x1b[0m", c, glyphs.vertical),
+                    None => print!("{}", glyphs.vertical),
                 },
-                None => print!("|"),
+                None => print!("{}", glyphs.vertical),
             },
             Entry::Cross(src) => match src {
                 Some(src) => match get_color(*src) {
-                    Some(c) => print!("\x1b[{}m+\x1b[0m", c),
-                    None => print!("+"),
+                    Some(c) => print!("\x1b[{}m{}\x1b[0m", c, glyphs.crossing),
+                    None => print!("{}", glyphs.crossing),
                 },
-                None => print!("+"),
+                None => print!("{}", glyphs.crossing),
             },
             Entry::Node(_, part) if *part > 0 => {}
             Entry::Node(id, _) => match id {

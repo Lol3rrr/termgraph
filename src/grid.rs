@@ -4,7 +4,7 @@ use std::{
     hash::Hash,
 };
 
-use crate::{acyclic::AcyclicDirectedGraph, Color, NodeFormat};
+use crate::{acyclic::AcyclicDirectedGraph, Color, LineGlyphs, NodeFormat};
 
 mod entry;
 pub use entry::Entry;
@@ -360,7 +360,7 @@ where
         }
     }
 
-    pub fn display(&self, color_palette: Option<&Vec<Color>>) {
+    pub fn display(&self, color_palette: Option<&Vec<Color>>, glyphs: &LineGlyphs) {
         let mut colors = HashMap::new();
         let mut current_color = 0;
 
@@ -378,7 +378,11 @@ where
 
         for row in &self.inner.inner {
             for entry in row {
-                entry.display(&mut get_color, |id| self.names.get(id).unwrap().clone());
+                entry.display(
+                    &mut get_color,
+                    |id| self.names.get(id).unwrap().clone(),
+                    glyphs,
+                );
             }
             println!();
         }

@@ -33,6 +33,33 @@ impl From<Color> for usize {
     }
 }
 
+/// Describes the Glyphs that should be used to display the lines in the Graph
+pub struct LineGlyphs {
+    pub(crate) vertical: char,
+    pub(crate) horizontal: char,
+    pub(crate) crossing: char,
+}
+
+impl LineGlyphs {
+    /// The default ASCII Glyphs for the lines in a Graph
+    pub fn ascii() -> Self {
+        Self {
+            vertical: '|',
+            horizontal: '-',
+            crossing: '+',
+        }
+    }
+
+    /// Uses the given Glyphs for the Lines in the Graph
+    pub fn custom(vertical: char, horizontal: char, crossing: char) -> Self {
+        Self {
+            vertical,
+            horizontal,
+            crossing,
+        }
+    }
+}
+
 /// The Configuration to use for displaying a Graph
 ///
 /// # Example
@@ -45,6 +72,7 @@ pub struct Config<ID, T> {
     pub(crate) formatter: Box<dyn NodeFormat<ID, T>>,
     pub(crate) color_palette: Option<Vec<Color>>,
     pub(crate) max_per_layer: usize,
+    pub(crate) line_glyphs: LineGlyphs,
 }
 
 impl<ID, T> Config<ID, T> {
@@ -60,6 +88,7 @@ impl<ID, T> Config<ID, T> {
             formatter: Box::new(nfmt),
             color_palette: None,
             max_per_layer,
+            line_glyphs: LineGlyphs::ascii(),
         }
     }
 
@@ -100,6 +129,12 @@ impl<ID, T> Config<ID, T> {
     /// Disables the colors for the output
     pub fn disable_colors(mut self) -> Self {
         self.color_palette = None;
+        self
+    }
+
+    /// Sets the Glyphs to use for the Lines in the Graph
+    pub fn line_glyphs(mut self, glyphs: LineGlyphs) -> Self {
+        self.line_glyphs = glyphs;
         self
     }
 }

@@ -39,7 +39,7 @@ mod formatter;
 pub use formatter::{IDFormatter, NodeFormat, ValueFormatter};
 
 mod config;
-pub use config::{Color, Config};
+pub use config::{Color, Config, LineGlyphs};
 
 /// This is used to output the given Graph to the Terminal
 ///
@@ -73,7 +73,7 @@ where
     // Perform permutations on each Level to reduce the crossings of different Paths
 
     let grid = grid::Grid::construct(&agraph, levels, reved_edges, config.formatter.as_ref());
-    grid.display(config.color_palette.as_ref());
+    grid.display(config.color_palette.as_ref(), &config.line_glyphs);
     println!();
 }
 
