@@ -1,11 +1,17 @@
 # Changelog
 
+# [0.3] - {}.{}.2022
+Contains minor QoL improvements
+## Changes
+* Added Arrow-Heads to the Edges (#9)
+* Fixed incorrect Node/Edge spacing (#10)
+
 # [0.2] - 7.6.2022
 This contains a large overhaul of the API so not every detail will be listed here.
 ## Changes
-* Introduced a Config, to allow for more customization
-* Added a custom Trait to format the Nodes in the Graph
-* Improved Color Support
+* Introduced a Config, to allow for more customization (#2, #4, #5)
+* Added a custom Trait to format the Nodes in the Graph (#2)
+* Improved Color Support (#4, #5)
 * Restructured the API to make it more ergonomic to use
 
 
