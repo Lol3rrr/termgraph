@@ -94,6 +94,12 @@ pub struct LineGlyphs {
     pub(crate) arrow_down: char,
 }
 
+impl From<LineGlyphBuilder> for LineGlyphs {
+    fn from(builder: LineGlyphBuilder) -> Self {
+        builder.finish()
+    }
+}
+
 /// The Configuration to use for displaying a Graph
 ///
 /// # Example
@@ -167,8 +173,11 @@ impl<ID, T> Config<ID, T> {
     }
 
     /// Sets the Glyphs to use for the Lines in the Graph
-    pub fn line_glyphs(mut self, glyphs: LineGlyphs) -> Self {
-        self.line_glyphs = glyphs;
+    pub fn line_glyphs<L>(mut self, glyphs: L) -> Self
+    where
+        L: Into<LineGlyphs>,
+    {
+        self.line_glyphs = glyphs.into();
         self
     }
 }
