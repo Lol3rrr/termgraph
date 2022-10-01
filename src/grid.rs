@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     fmt::{Debug, Display},
     hash::Hash,
 };
@@ -54,7 +54,7 @@ struct Horizontal<'g, ID> {
     /// The ID of the Source
     src: &'g ID,
     /// The X-Coordinates of the Targets in the lower Level
-    targets: Vec<GridCoordinate>,
+    targets: Vec<(GridCoordinate, bool)>,
 }
 
 impl<'g, ID> Clone for Horizontal<'g, ID> {
@@ -103,6 +103,14 @@ where
                     .iter()
                     .enumerate()
                     .map(|(i, id)| (id.id(), i))
+                    .collect();
+
+                let second_users: HashSet<&ID> = second
+                    .iter()
+                    .filter_map(|entry| match entry {
+                        LevelEntry::User(id) => Some(*id),
+                        _ => None,
+                    })
                     .collect();
 
                 let mut temp_horizontal: Vec<_> = first
@@ -183,7 +191,10 @@ where
                                     .sum();
 
                                 // Calculate the Coordinate of the Target
-                                GridCoordinate(index * 2 + offset + in_node_offset / 2 + 1)
+                                (
+                                    GridCoordinate(index * 2 + offset + in_node_offset / 2 + 1),
+                                    !second_users.contains(t_id),
+                                )
                             })
                             .collect();
 
@@ -201,7 +212,7 @@ where
                 // Sorts them based on their Targets average Coordinate, to try to avoid
                 // unnecessary crossings in the Edges
                 temp_horizontal.sort_by_cached_key(|hori| {
-                    let sum_targets: usize = hori.targets.iter().map(|cord| cord.0).sum();
+                    let sum_targets: usize = hori.targets.iter().map(|cord| cord.0 .0).sum();
                     let target_count = hori.targets.len();
                     sum_targets / target_count
                 });
@@ -255,11 +266,11 @@ where
             .iter()
             .flat_map(|hori| {
                 let sx = std::iter::once(&hori.x_coord)
-                    .chain(hori.targets.iter())
+                    .chain(hori.targets.iter().map(|t| &t.0))
                     .min()
                     .unwrap();
                 let tx = std::iter::once(&hori.x_coord)
-                    .chain(hori.targets.iter())
+                    .chain(hori.targets.iter().map(|t| &t.0))
                     .max()
                     .unwrap();
 
@@ -280,7 +291,8 @@ where
                     *y += 1;
 
                     let into_coords = {
-                        let mut targets = hori.targets.clone();
+                        let mut targets: Vec<_> =
+                            hori.targets.clone().into_iter().map(|t| t.0).collect();
                         targets.sort_unstable();
                         targets.dedup();
                         targets
@@ -302,9 +314,16 @@ where
             .collect();
 
         for (src, target_y, target_x) in horizontal_iter {
-            for py in target_y..(*y) {
-                result.set(target_x, py, Entry::Veritcal(Some(src)));
+            for py in target_y..(*y - 1) {
+                result.set(target_x.0, py, Entry::Veritcal(Some(src)));
             }
+
+            let ent = if target_x.1 {
+                Entry::Veritcal(Some(src))
+            } else {
+                Entry::ArrowDown(Some(src))
+            };
+            result.set(target_x.0, *y - 1, ent);
         }
     }
 

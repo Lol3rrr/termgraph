@@ -38,24 +38,27 @@ pub struct LineGlyphs {
     pub(crate) vertical: char,
     pub(crate) horizontal: char,
     pub(crate) crossing: char,
+    pub(crate) arrow_down: char,
 }
 
 impl LineGlyphs {
     /// The default ASCII Glyphs for the lines in a Graph
-    pub fn ascii() -> Self {
+    pub const fn ascii() -> Self {
         Self {
             vertical: '|',
             horizontal: '-',
             crossing: '+',
+            arrow_down: 'V',
         }
     }
 
     /// Uses the given Glyphs for the Lines in the Graph
-    pub fn custom(vertical: char, horizontal: char, crossing: char) -> Self {
+    pub fn custom(vertical: char, horizontal: char, crossing: char, arrow_down: char) -> Self {
         Self {
             vertical,
             horizontal,
             crossing,
+            arrow_down,
         }
     }
 }
