@@ -9,6 +9,7 @@ pub enum Entry<'g, ID> {
     Horizontal(&'g ID),
     Veritcal(Option<&'g ID>),
     Cross(Option<&'g ID>),
+    ArrowDown(Option<&'g ID>),
     Node(LevelEntry<'g, ID>, usize),
     OpenParen,
     CloseParen,
@@ -41,6 +42,11 @@ where
                 Entry::Cross(Some(hsrc))
             }
             (Entry::Veritcal(_), Entry::Horizontal(_)) => Entry::Cross(None),
+            // Something being added to an existing arrow-down
+            (Entry::ArrowDown(og), Entry::ArrowDown(n)) if *og == n => Entry::ArrowDown(n),
+            (Entry::ArrowDown(_), Entry::ArrowDown(_)) => Entry::ArrowDown(None),
+            (Entry::Veritcal(og), Entry::ArrowDown(n)) if *og == n => Entry::ArrowDown(n),
+            (Entry::Veritcal(_), Entry::ArrowDown(_)) => Entry::ArrowDown(None),
             // Something being added to an existing Cross
             (Entry::Cross(n), Entry::Empty) => Entry::Cross(*n),
             (Entry::Cross(None), _) => Entry::Cross(None),
@@ -94,6 +100,13 @@ impl<'g, ID> Entry<'g, ID> {
                     None => print!("{}", glyphs.crossing),
                 },
                 None => print!("{}", glyphs.crossing),
+            },
+            Entry::ArrowDown(src) => match src {
+                Some(src) => match get_color(*src) {
+                    Some(c) => print!("\x1b[{}m{}\x1b[0m", c, glyphs.arrow_down),
+                    None => print!("{}", glyphs.arrow_down),
+                },
+                None => print!("{}", glyphs.arrow_down),
             },
             Entry::Node(_, part) if *part > 0 => {}
             Entry::Node(id, _) => match id {

@@ -3,7 +3,7 @@ use termgraph::{Config, DirectedGraph, IDFormatter, LineGlyphs};
 fn main() {
     let config = Config::new(IDFormatter::new(), 3)
         .default_colors()
-        .line_glyphs(LineGlyphs::custom('v', 'h', 'c'));
+        .line_glyphs(LineGlyphs::custom('v', 'h', 'c', 'd'));
 
     let cross_level_branch = {
         let mut tmp: DirectedGraph<usize, &str> = DirectedGraph::new();
