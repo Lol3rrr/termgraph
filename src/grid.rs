@@ -25,8 +25,8 @@ impl<'g, ID> LevelEntry<'g, ID> {
     /// The ID of the Source
     pub fn id(&self) -> &'g ID {
         match &self {
-            Self::User(s) => *s,
-            Self::Dummy { from, .. } => *from,
+            Self::User(s) => s,
+            Self::Dummy { from, .. } => from,
         }
     }
 
