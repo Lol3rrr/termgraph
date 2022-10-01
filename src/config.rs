@@ -33,16 +33,16 @@ impl From<Color> for usize {
     }
 }
 
-/// Describes the Glyphs that should be used to display the lines in the Graph
-pub struct LineGlyphs {
-    pub(crate) vertical: char,
-    pub(crate) horizontal: char,
-    pub(crate) crossing: char,
-    pub(crate) arrow_down: char,
+/// This builder is used to construct a [`LineGlyphs`] instance
+pub struct LineGlyphBuilder {
+    vertical: char,
+    horizontal: char,
+    crossing: char,
+    arrow_down: char,
 }
 
-impl LineGlyphs {
-    /// The default ASCII Glyphs for the lines in a Graph
+impl LineGlyphBuilder {
+    /// Creates the base Builder using the default ASCII symbols
     pub const fn ascii() -> Self {
         Self {
             vertical: '|',
@@ -52,15 +52,46 @@ impl LineGlyphs {
         }
     }
 
-    /// Uses the given Glyphs for the Lines in the Graph
-    pub fn custom(vertical: char, horizontal: char, crossing: char, arrow_down: char) -> Self {
-        Self {
-            vertical,
-            horizontal,
-            crossing,
-            arrow_down,
+    /// Set the Glyph for vertical lines
+    pub const fn vertical(mut self, glyph: char) -> Self {
+        self.vertical = glyph;
+        self
+    }
+    /// Set the Glyph for horizontal lines
+    pub const fn horizontal(mut self, glyph: char) -> Self {
+        self.horizontal = glyph;
+        self
+    }
+    /// Set the Glyph for the crossings of two lines
+    pub const fn crossing(mut self, glyph: char) -> Self {
+        self.crossing = glyph;
+        self
+    }
+    /// Set the Glyph for arrow heads at the end of the edges
+    pub const fn arrow_down(mut self, glyph: char) -> Self {
+        self.arrow_down = glyph;
+        self
+    }
+
+    /// Should be called, once the configuration is done to obtain the final [`LineGlyphs`] instance
+    pub const fn finish(self) -> LineGlyphs {
+        LineGlyphs {
+            vertical: self.vertical,
+            horizontal: self.horizontal,
+            crossing: self.crossing,
+            arrow_down: self.arrow_down,
         }
     }
+}
+
+/// Describes the Glyphs that should be used to display the lines in the Graph.
+///
+/// This can't be constructed directly, but instead is constructed using [`LineGlyphBuilder`]
+pub struct LineGlyphs {
+    pub(crate) vertical: char,
+    pub(crate) horizontal: char,
+    pub(crate) crossing: char,
+    pub(crate) arrow_down: char,
 }
 
 /// The Configuration to use for displaying a Graph
@@ -91,7 +122,7 @@ impl<ID, T> Config<ID, T> {
             formatter: Box::new(nfmt),
             color_palette: None,
             max_per_layer,
-            line_glyphs: LineGlyphs::ascii(),
+            line_glyphs: LineGlyphBuilder::ascii().finish(),
         }
     }
 

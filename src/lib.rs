@@ -39,7 +39,7 @@ mod formatter;
 pub use formatter::{IDFormatter, NodeFormat, ValueFormatter};
 
 mod config;
-pub use config::{Color, Config, LineGlyphs};
+pub use config::{Color, Config, LineGlyphBuilder, LineGlyphs};
 
 /// This is used to output the given Graph to the Terminal
 ///

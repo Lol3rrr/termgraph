@@ -1,9 +1,16 @@
-use termgraph::{Config, DirectedGraph, IDFormatter, LineGlyphs};
+use termgraph::{Config, DirectedGraph, IDFormatter, LineGlyphBuilder};
 
 fn main() {
     let config = Config::new(IDFormatter::new(), 3)
         .default_colors()
-        .line_glyphs(LineGlyphs::custom('v', 'h', 'c', 'd'));
+        .line_glyphs(
+            LineGlyphBuilder::ascii()
+                .vertical('v')
+                .horizontal('h')
+                .crossing('c')
+                .arrow_down('d')
+                .finish(),
+        );
 
     let cross_level_branch = {
         let mut tmp: DirectedGraph<usize, &str> = DirectedGraph::new();

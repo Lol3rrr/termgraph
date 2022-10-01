@@ -5,6 +5,7 @@ Contains minor QoL improvements
 ## Changes
 * Added Arrow-Heads to the Edges (#9)
 * Fixed incorrect Node/Edge spacing (#10)
+* Switched to the Builder-Pattern for the Glyph configuration
 
 # [0.2] - 7.6.2022
 This contains a large overhaul of the API so not every detail will be listed here.
