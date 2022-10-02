@@ -21,6 +21,12 @@ pub enum LevelEntry<'g, ID> {
     Dummy { from: &'g ID, to: &'g ID },
 }
 
+pub enum LevelEntryIter<'ag, 'g, ID> {
+    User(std::collections::hash_set::Iter<'ag, &'g ID>),
+    UserEmpty,
+    Dummy(core::iter::Once<&'g ID>),
+}
+
 impl<'g, ID> LevelEntry<'g, ID> {
     /// The ID of the Source
     pub fn id(&self) -> &'g ID {
@@ -34,6 +40,22 @@ impl<'g, ID> LevelEntry<'g, ID> {
     pub fn is_user(&self) -> bool {
         matches!(self, Self::User(_))
     }
+
+    pub fn succ_iter<'ag, T>(
+        &self,
+        graph: &'ag AcyclicDirectedGraph<'g, ID, T>,
+    ) -> LevelEntryIter<'ag, 'g, ID>
+    where
+        ID: Hash + Eq,
+    {
+        match self {
+            Self::Dummy { to, .. } => LevelEntryIter::Dummy(core::iter::once(to)),
+            Self::User(id) => match graph.successors(id) {
+                Some(succs) => LevelEntryIter::User(succs.iter()),
+                None => LevelEntryIter::UserEmpty,
+            },
+        }
+    }
 }
 
 impl<'g, ID> Clone for LevelEntry<'g, ID> {
@@ -45,24 +67,39 @@ impl<'g, ID> Clone for LevelEntry<'g, ID> {
     }
 }
 
+impl<'ag, 'g, ID> Iterator for LevelEntryIter<'ag, 'g, ID> {
+    type Item = &'g ID;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            Self::UserEmpty => None,
+            Self::User(iter) => iter.next().copied(),
+            Self::Dummy(iter) => iter.next(),
+        }
+    }
+}
+
 /// A Horizontal is used to connect from a single Source in the upper layer to one or multiple
 /// Targets in the lower layer
 #[derive(Debug)]
 struct Horizontal<'g, ID> {
     /// The X-Coordinate of the Source in the upper Level
-    x_coord: GridCoordinate,
+    src_x: GridCoordinate,
     /// The ID of the Source
     src: &'g ID,
     /// The X-Coordinates of the Targets in the lower Level
     targets: Vec<(GridCoordinate, bool)>,
+    /// A touple of the smallest and largest x coordinates
+    x_bounds: (GridCoordinate, GridCoordinate),
 }
 
 impl<'g, ID> Clone for Horizontal<'g, ID> {
     fn clone(&self) -> Self {
         Self {
-            x_coord: self.x_coord,
+            src_x: self.src_x,
             src: self.src,
             targets: self.targets.clone(),
+            x_bounds: self.x_bounds,
         }
     }
 }
@@ -83,46 +120,94 @@ impl<'g, ID> Grid<'g, ID>
 where
     ID: Hash + Eq + Display,
 {
-    /// This is responsible for generating all the Horizontals needed for each Layer
-    fn generate_horizontals<T>(
+    fn generate_horizontal<T>(
         agraph: &AcyclicDirectedGraph<'g, ID, T>,
-        levels: &mut Vec<Vec<LevelEntry<'g, ID>>>,
+        first: &[LevelEntry<'g, ID>],
+        second: &[LevelEntry<'g, ID>],
         node_names: &HashMap<&ID, String>,
-    ) -> Vec<Vec<Horizontal<'g, ID>>> {
-        (0..(levels.len() - 1))
-            .map(|index| {
-                let levels_slice = levels.as_mut_slice();
-                let (first_half, second_half) = levels_slice.split_at_mut(index + 1);
+    ) -> Vec<Horizontal<'g, ID>> {
+        #[derive(Clone, Copy)]
+        struct NodeNameLength(usize);
 
-                // The upper and lower level that need to be connected
-                let first = first_half.get_mut(index).expect("");
-                let second = second_half.get_mut(0).unwrap();
+        #[derive(Clone, Copy)]
+        struct Index(usize);
 
-                // The Entries in the second/lower level mapped to their respective X-Indices
-                let second_entries: HashMap<&ID, usize> = second
-                    .iter()
-                    .enumerate()
-                    .map(|(i, id)| (id.id(), i))
-                    .collect();
+        // The Entries in the second/lower level mapped to their respective X-Indices
+        let second_entries: HashMap<&ID, (Index, NodeNameLength)> = second
+            .iter()
+            .enumerate()
+            .map(|(i, id)| {
+                let len = match id {
+                    LevelEntry::User(uid) => node_names.get(uid).map(|n| n.len()).unwrap_or(0),
+                    LevelEntry::Dummy { .. } => 0,
+                };
 
-                let second_users: HashSet<&ID> = second
-                    .iter()
-                    .filter_map(|entry| match entry {
-                        LevelEntry::User(id) => Some(*id),
-                        _ => None,
-                    })
-                    .collect();
+                (
+                    match id {
+                        LevelEntry::User(id) => *id,
+                        LevelEntry::Dummy { to, .. } => to,
+                    },
+                    (Index(i), NodeNameLength(len)),
+                )
+            })
+            .collect();
 
-                let mut temp_horizontal: Vec<_> = first
-                    .iter()
-                    .enumerate()
-                    .map(|(raw_x, e)| {
-                        // Calculate the Source Coordinates
+        let second_users: HashSet<&ID> = second
+            .iter()
+            .filter_map(|entry| match entry {
+                LevelEntry::User(id) => Some(*id),
+                _ => None,
+            })
+            .collect();
 
-                        // Calculate the Offset "generated" by the preceding Entries at the Level
-                        let offset: usize = first
+        // An iterator over all the Source Entries and their respective coordinates in the first layer
+        let first_src_coords = first.iter().enumerate().map(|(raw_x, e)| {
+            // Calculate the Source Coordinates
+
+            // Calculate the Offset "generated" by the preceding Entries at the Level
+            let offset: usize = first
+                .iter()
+                .take(raw_x)
+                .map(|id| {
+                    if id.is_user() {
+                        node_names.get(id.id()).map(|n| n.len()).unwrap_or(0)
+                    } else {
+                        1
+                    }
+                })
+                .sum();
+
+            // Caclulate the actual Coordinate based on the Entry itself as User and Dummy entries have slightly different behaviour
+            let cord = if e.is_user() {
+                let in_node_offset = node_names.get(e.id()).map(|s| s.len()).unwrap_or(0);
+                raw_x * 2 + offset + in_node_offset / 2 + 1
+            } else {
+                raw_x * 2 + offset + 1
+            };
+
+            (GridCoordinate(cord), e)
+        });
+
+        let mut temp_horizontal: Vec<_> = first_src_coords
+            .map(|(root, src_entry)| {
+                // Connect the Source to its Targets in the lower Level
+
+                // An Iterator over the Successors of the src_entry
+                let succs = src_entry.succ_iter(agraph);
+
+                let targets: Vec<_> = succs
+                    .map(|t_id| {
+                        let (index, in_node_offset) = match second_entries.get(t_id).copied() {
+                            Some((i, len)) => (i.0, len.0),
+                            None => {
+                                unreachable!("We previously checked and inserted all missing Entries/Dummy Nodes")
+                            }
+                        };
+
+                        // Calculate the Offset until the Target
+                        let offset: usize = second
                             .iter()
-                            .take(raw_x)
+                            .take(index)
                             .map(|id| {
                                 if id.is_user() {
                                     node_names.get(id.id()).map(|n| n.len()).unwrap_or(0)
@@ -132,93 +217,138 @@ where
                             })
                             .sum();
 
-                        // Caclulate the actual Coordinate based on the Entry itself as User and Dummy entries have slightly different behaviour
-                        let cord = if e.is_user() {
-                            let in_node_offset =
-                                node_names.get(e.id()).map(|s| s.len()).unwrap_or(0);
-                            raw_x * 2 + offset + in_node_offset / 2 + 1
-                        } else {
-                            raw_x * 2 + offset + 1
-                        };
-
-                        (GridCoordinate(cord), e)
-                    })
-                    .map(|(root, src_entry)| {
-                        // Connect the Source to its Targets in the lower Level
-
-                        // An Iterator over the Successors of the src_entry
-                        let succs: Box<dyn Iterator<Item = &ID>> = match src_entry {
-                            LevelEntry::User(src_id) => {
-                                Box::new(agraph.successors(src_id).unwrap().iter().copied())
-                            }
-                            LevelEntry::Dummy { to, .. } => Box::new(std::iter::once(*to)),
-                        };
-
-                        let targets = succs
-                            .map(|t_id| {
-                                let (index, in_node_offset) =
-                                    match second_entries.get(t_id).copied() {
-                                        Some(i) => {
-                                            // If the successor is in the next Layer, we already know its index and
-                                            // then also calculate the offset to point at the middle of the Target-Node
-                                            let in_node_offset =
-                                                node_names.get(t_id).map(|s| s.len()).unwrap_or(0);
-                                            (i, in_node_offset)
-                                        }
-                                        None => {
-                                            // The Successor is not in the next Layer, so we need to add a Dummy Node to
-                                            // target instead
-                                            second.push(LevelEntry::Dummy {
-                                                from: src_entry.id(),
-                                                to: t_id,
-                                            });
-
-                                            (second.len() - 1, 0)
-                                        }
-                                    };
-
-                                // Calculate the Offset until the Target
-                                let offset: usize = second
-                                    .iter()
-                                    .take(index)
-                                    .map(|id| {
-                                        if id.is_user() {
-                                            node_names.get(id.id()).map(|n| n.len()).unwrap_or(0)
-                                        } else {
-                                            1
-                                        }
-                                    })
-                                    .sum();
-
-                                // Calculate the Coordinate of the Target
-                                (
-                                    GridCoordinate(index * 2 + offset + in_node_offset / 2 + 1),
-                                    !second_users.contains(t_id),
-                                )
-                            })
-                            .collect();
-
-                        Horizontal {
-                            x_coord: root,
-                            src: src_entry.id(),
-                            targets,
-                        }
+                        // Calculate the Coordinate of the Target
+                        (
+                            GridCoordinate(index * 2 + offset + in_node_offset / 2 + 1),
+                            !second_users.contains(t_id),
+                        )
                     })
                     .collect();
 
-                // Sorts them based on their source X-Coordinates
-                temp_horizontal.sort_unstable_by(|x1, x2| x1.x_coord.cmp(&x2.x_coord));
+                // Smallest x coordinate in the entire horizontal
+                let sx = *std::iter::once(&root)
+                    .chain(targets.iter().map(|t| &t.0))
+                    .min()
+                    .unwrap();
+                // Smallest x coordinate in the entire horizontal
+                let tx = *std::iter::once(&root)
+                    .chain(targets.iter().map(|t| &t.0))
+                    .max()
+                    .unwrap();
 
-                // Sorts them based on their Targets average Coordinate, to try to avoid
-                // unnecessary crossings in the Edges
-                temp_horizontal.sort_by_cached_key(|hori| {
-                    let sum_targets: usize = hori.targets.iter().map(|cord| cord.0 .0).sum();
-                    let target_count = hori.targets.len();
-                    sum_targets / target_count
-                });
-                temp_horizontal
+                Horizontal {
+                    src_x: root,
+                    src: src_entry.id(),
+                    targets,
+                    x_bounds: (sx, tx),
+                }
+            })
+            .collect();
+
+        // Sorts them based on their source X-Coordinates
+        temp_horizontal.sort_unstable_by(|x1, x2| x1.src_x.cmp(&x2.src_x));
+
+        // Sorts them based on their Targets average Coordinate, to try to avoid
+        // unnecessary crossings in the Edges
+        temp_horizontal.sort_by_cached_key(|hori| {
+            let sum_targets: usize = hori.targets.iter().map(|cord| cord.0 .0).sum();
+            let target_count = hori.targets.len();
+            sum_targets / target_count
+        });
+        temp_horizontal
+    }
+
+    /// This is responsible for generating all the Horizontals needed for each Layer
+    fn generate_horizontals<T>(
+        agraph: &AcyclicDirectedGraph<'g, ID, T>,
+        levels: &mut [Vec<LevelEntry<'g, ID>>],
+        node_names: &HashMap<&ID, String>,
+    ) -> Vec<Vec<Horizontal<'g, ID>>> {
+        for idx in 0..(levels.len() - 1) {
+            let (first_half, second_half) = levels.split_at_mut(idx + 1);
+
+            // The upper and lower level that need to be connected
+            let first = first_half.get_mut(idx).expect("");
+            let second = second_half.get_mut(0).unwrap();
+
+            for entry in first {
+                let succs = entry.succ_iter(agraph);
+
+                for succ in succs {
+                    if !second.iter().any(|s| match s {
+                        LevelEntry::Dummy { .. } => false,
+                        LevelEntry::User(id) => *id == succ,
+                    }) {
+                        second.push(LevelEntry::Dummy {
+                            from: entry.id(),
+                            to: succ,
+                        });
+                    }
+                }
+            }
+        }
+
+        (0..(levels.len() - 1))
+            .map(|index| {
+                let (first_half, second_half) = levels.split_at_mut(index + 1);
+
+                // The upper and lower level that need to be connected
+                let first = first_half.get_mut(index).expect("");
+                let second = second_half.get_mut(0).unwrap();
+
+                Self::generate_horizontal(agraph, first, second, node_names)
             })
             .collect()
+    }
+
+    fn insert_nodes(
+        y: usize,
+        result: &mut InnerGrid<'g, ID>,
+        level: &[LevelEntry<'g, ID>],
+        node_names: &HashMap<&ID, String>,
+    ) {
+        let row = result.row_mut(y);
+        let mut cursor = row.into_cursor();
+        for entry in level.iter() {
+            cursor.set(Entry::Empty);
+            match &entry {
+                LevelEntry::User(id) => {
+                    let name = node_names.get(id).expect("");
+                    cursor.set_node(entry.clone(), name);
+                }
+                LevelEntry::Dummy { .. } => {
+                    cursor.set_node(entry.clone(), "");
+                }
+            };
+
+            cursor.set(Entry::Empty);
+        }
+    }
+
+    /// # Params:
+    /// * `src_y`: The y-coordinate for the src nodes
+    /// * `horis`: An Iterator over all the Horizontals in this Connection Layer
+    ///
+    /// # Returns
+    /// An iterator over the Horizontals and their respective y-coordinate for the horizontal part
+    fn determine_ys<HI>(
+        src_y: usize,
+        horis: HI,
+    ) -> impl Iterator<Item = (Horizontal<'g, ID>, usize)>
+    where
+        HI: Iterator<Item = Horizontal<'g, ID>>,
+    {
+        let mut y = src_y + 1;
+
+        horis.map(move |hori| {
+            if hori.x_bounds.0 != hori.x_bounds.1 {
+                y += 1;
+            }
+
+            y += 1;
+
+            (hori, y)
+        })
     }
 
     /// This is used to actually "draw" the lines between two layers
@@ -226,94 +356,65 @@ where
         y: &mut usize,
         level: &[LevelEntry<'g, ID>],
         result: &mut InnerGrid<'g, ID>,
-        mut horizontals: Vec<Horizontal<'g, ID>>,
+        horizontals: Vec<Horizontal<'g, ID>>,
         node_names: &HashMap<&ID, String>,
     ) {
-        horizontals.sort_by_key(|h| h.targets.len());
+        // horizontals.sort_by_key(|h| h.targets.len());
 
         let level_y = *y;
 
         // Inserts the Nodes at the current y-Level
-        {
-            let row = result.row_mut(*y);
-            let mut cursor = row.into_cursor();
-            for entry in level.iter() {
-                cursor.set(Entry::Empty);
-                match &entry {
-                    LevelEntry::User(id) => {
-                        let name = node_names.get(id).expect("");
-                        cursor.set_node(entry.clone(), name);
-                    }
-                    LevelEntry::Dummy { .. } => {
-                        cursor.set_node(entry.clone(), "");
-                    }
-                };
-
-                cursor.set(Entry::Empty);
-            }
-            *y += 1;
-        }
+        Self::insert_nodes(*y, result, level, node_names);
+        *y += 1;
 
         // Insert the Vertical Row below every Node
-        {
-            for hori in horizontals.iter() {
-                result.set(hori.x_coord, *y, Entry::Veritcal(Some(hori.src)));
+        for hori in horizontals.iter() {
+            result.set(hori.src_x, *y, Entry::Veritcal(Some(hori.src)));
+        }
+        *y += 1;
+
+        let mut hori_ys = Vec::with_capacity(horizontals.len());
+        for hori in horizontals.iter() {
+            let horizontal_y = *y;
+            hori_ys.push(horizontal_y);
+            {
+                // Connect the src node to the horizontal line being drawn
+                for vy in (level_y + 2)..=*y {
+                    result.set(hori.src_x, vy, Entry::Veritcal(Some(hori.src)));
+                }
+
+                // If we need to move horizontally, insert all the needed horizontal Glyphs
+                if hori.x_bounds.0 != hori.x_bounds.1 {
+                    for x in hori.x_bounds.0.between(&(hori.x_bounds.1 + 1)) {
+                        result.set(x, horizontal_y, Entry::Horizontal(hori.src));
+                    }
+                }
             }
+
+            // If we need to move horizontally, draw all the vertical lines from the horizontal
+            // one to one slot below that
+            if hori.x_bounds.0 != hori.x_bounds.1 {
+                *y += 1;
+
+                for x in hori.targets.iter().map(|t| t.0) {
+                    result.set(x, *y - 1, Entry::Veritcal(Some(hori.src)));
+                    result.set(x, *y, Entry::Veritcal(Some(hori.src)));
+                }
+            }
+
             *y += 1;
         }
 
-        let horizontal_iter: Vec<_> = horizontals
+        let hori_iter = horizontals
             .iter()
-            .flat_map(|hori| {
-                let sx = std::iter::once(&hori.x_coord)
-                    .chain(hori.targets.iter().map(|t| &t.0))
-                    .min()
-                    .unwrap();
-                let tx = std::iter::once(&hori.x_coord)
-                    .chain(hori.targets.iter().map(|t| &t.0))
-                    .max()
-                    .unwrap();
+            .zip(hori_ys)
+            .flat_map(|(hori, horizontal_y)| {
+                hori.targets
+                    .iter()
+                    .map(move |x_targ| (hori.src, horizontal_y, *x_targ))
+            });
 
-                let horizontal_y = *y;
-                {
-                    for vy in (level_y + 2)..=*y {
-                        result.set(hori.x_coord, vy, Entry::Veritcal(Some(hori.src)));
-                    }
-
-                    if sx != tx {
-                        for x in sx.between(&(tx + 1)) {
-                            result.set(x, horizontal_y, Entry::Horizontal(hori.src));
-                        }
-                    }
-                }
-
-                if sx != tx {
-                    *y += 1;
-
-                    let into_coords = {
-                        let mut targets: Vec<_> =
-                            hori.targets.clone().into_iter().map(|t| t.0).collect();
-                        targets.sort_unstable();
-                        targets.dedup();
-                        targets
-                    };
-
-                    for x in into_coords.iter() {
-                        result.set(*x, *y - 1, Entry::Veritcal(Some(hori.src)));
-                        result.set(*x, *y, Entry::Veritcal(Some(hori.src)));
-                    }
-                }
-                *y += 1;
-
-                Box::new(
-                    hori.targets
-                        .iter()
-                        .map(move |x_targ| (hori.src, horizontal_y, *x_targ)),
-                )
-            })
-            .collect();
-
-        for (src, target_y, target_x) in horizontal_iter {
+        for (src, target_y, target_x) in hori_iter {
             for py in target_y..(*y - 1) {
                 result.set(target_x.0, py, Entry::Veritcal(Some(src)));
             }

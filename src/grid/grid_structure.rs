@@ -17,6 +17,13 @@ impl Add<usize> for &GridCoordinate {
         GridCoordinate(self.0 + rhs)
     }
 }
+impl Add<usize> for GridCoordinate {
+    type Output = GridCoordinate;
+
+    fn add(self, rhs: usize) -> Self::Output {
+        GridCoordinate(self.0 + rhs)
+    }
+}
 
 pub struct InnerGrid<'g, ID> {
     pub inner: Vec<Vec<Entry<'g, ID>>>,
