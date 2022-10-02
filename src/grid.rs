@@ -328,27 +328,45 @@ where
     /// # Params:
     /// * `src_y`: The y-coordinate for the src nodes
     /// * `horis`: An Iterator over all the Horizontals in this Connection Layer
+    /// * `horizontal_spacer`: Determines how much space should be left between each horizontal line
     ///
     /// # Returns
-    /// An iterator over the Horizontals and their respective y-coordinate for the horizontal part
-    fn determine_ys<HI>(
+    /// An iterator over the Horizontals and their respective y-coordinate for the horizontal part, as well as the max y-coordinate
+    fn determine_ys<'h>(
         src_y: usize,
-        horis: HI,
-    ) -> impl Iterator<Item = (Horizontal<'g, ID>, usize)>
-    where
-        HI: Iterator<Item = Horizontal<'g, ID>>,
-    {
-        let mut y = src_y + 1;
+        horis: &'h [Horizontal<'g, ID>],
+        horizontal_spacer: usize,
+    ) -> (
+        impl Iterator<Item = (Horizontal<'g, ID>, usize)> + 'h,
+        usize,
+    ) {
+        let mut y = src_y + 2;
 
-        horis.map(move |hori| {
-            if hori.x_bounds.0 != hori.x_bounds.1 {
-                y += 1;
-            }
+        let final_y = src_y
+            + horis
+                .iter()
+                .enumerate()
+                .map(|(i, h)| {
+                    if i < horis.len() - 1 && h.x_bounds.0 != h.x_bounds.1 {
+                        1 + horizontal_spacer
+                    } else {
+                        usize::from(i == horis.len() - 1 && h.x_bounds.0 != h.x_bounds.1)
+                    }
+                })
+                .sum::<usize>()
+            + 4;
 
-            y += 1;
+        (
+            horis.iter().cloned().map(move |hori| {
+                let hy = y;
+                if hori.x_bounds.0 != hori.x_bounds.1 {
+                    y += 1 + horizontal_spacer;
+                }
 
-            (hori, y)
-        })
+                (hori, hy)
+            }),
+            final_y,
+        )
     }
 
     /// This is used to actually "draw" the lines between two layers
@@ -359,10 +377,6 @@ where
         horizontals: Vec<Horizontal<'g, ID>>,
         node_names: &HashMap<&ID, String>,
     ) {
-        // horizontals.sort_by_key(|h| h.targets.len());
-
-        let level_y = *y;
-
         // Inserts the Nodes at the current y-Level
         Self::insert_nodes(*y, result, level, node_names);
         *y += 1;
@@ -373,59 +387,39 @@ where
         }
         *y += 1;
 
-        let mut hori_ys = Vec::with_capacity(horizontals.len());
-        for hori in horizontals.iter() {
-            let horizontal_y = *y;
-            hori_ys.push(horizontal_y);
-            {
-                // Connect the src node to the horizontal line being drawn
-                for vy in (level_y + 2)..=*y {
-                    result.set(hori.src_x, vy, Entry::Veritcal(Some(hori.src)));
-                }
-
-                // If we need to move horizontally, insert all the needed horizontal Glyphs
-                if hori.x_bounds.0 != hori.x_bounds.1 {
-                    for x in hori.x_bounds.0.between(&(hori.x_bounds.1 + 1)) {
-                        result.set(x, horizontal_y, Entry::Horizontal(hori.src));
-                    }
-                }
-            }
-
-            // If we need to move horizontally, draw all the vertical lines from the horizontal
-            // one to one slot below that
+        let (hori_iter, lowest_y) = Self::determine_ys(*y - 2, &horizontals, 1);
+        for (hori, y_height) in hori_iter {
+            // Draw the horizontal line
             if hori.x_bounds.0 != hori.x_bounds.1 {
-                *y += 1;
-
-                for x in hori.targets.iter().map(|t| t.0) {
-                    result.set(x, *y - 1, Entry::Veritcal(Some(hori.src)));
-                    result.set(x, *y, Entry::Veritcal(Some(hori.src)));
+                for x in hori.x_bounds.0.between(&(hori.x_bounds.1 + 1)) {
+                    result.set(x, y_height, Entry::Horizontal(hori.src));
                 }
             }
 
-            *y += 1;
-        }
-
-        let hori_iter = horizontals
-            .iter()
-            .zip(hori_ys)
-            .flat_map(|(hori, horizontal_y)| {
-                hori.targets
-                    .iter()
-                    .map(move |x_targ| (hori.src, horizontal_y, *x_targ))
-            });
-
-        for (src, target_y, target_x) in hori_iter {
-            for py in target_y..(*y - 1) {
-                result.set(target_x.0, py, Entry::Veritcal(Some(src)));
+            // Connect the src node to the horizontal line being drawn
+            for vy in (*y - 1)..=y_height {
+                result.set(hori.src_x, vy, Entry::Veritcal(Some(hori.src)));
             }
 
-            let ent = if target_x.1 {
-                Entry::Veritcal(Some(src))
-            } else {
-                Entry::ArrowDown(Some(src))
-            };
-            result.set(target_x.0, *y - 1, ent);
+            for target in hori.targets {
+                for y in y_height..(lowest_y - 1) {
+                    result.set(target.0, y, Entry::Veritcal(Some(hori.src)));
+                }
+
+                for py in y_height..(*y - 1) {
+                    result.set(target.0, py, Entry::Veritcal(Some(hori.src)));
+                }
+
+                let ent = if target.1 {
+                    Entry::Veritcal(Some(hori.src))
+                } else {
+                    Entry::ArrowDown(Some(hori.src))
+                };
+                result.set(target.0, lowest_y - 1, ent);
+            }
         }
+
+        *y = lowest_y;
     }
 
     /// Construct the Grid based on the given information about the levels and overall structure
@@ -506,5 +500,55 @@ where
             }
             println!();
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn determine_ys_nogap_0hori() {
+        let horizontals = [];
+        let (mut result_iter, result_y) = Grid::<usize>::determine_ys(0, &horizontals, 0);
+
+        assert_eq!(4, result_y);
+        assert!(result_iter.next().is_none());
+    }
+
+    #[test]
+    fn determine_ys_nogap_1hori_straight() {
+        let horizontals = [Horizontal {
+            src: &0,
+            src_x: GridCoordinate(0),
+            targets: vec![(GridCoordinate(0), false)],
+            x_bounds: (GridCoordinate(0), GridCoordinate(0)),
+        }];
+        let (mut result_iter, result_y) = Grid::<usize>::determine_ys(0, &horizontals, 0);
+
+        assert_eq!(4, result_y);
+
+        let first_res = result_iter.next().expect("Should return 1 result");
+        assert_eq!(2, first_res.1);
+
+        assert!(result_iter.next().is_none());
+    }
+
+    #[test]
+    fn determine_ys_nogap_1hori_notstraight() {
+        let horizontals = [Horizontal {
+            src: &0,
+            src_x: GridCoordinate(0),
+            targets: vec![(GridCoordinate(2), false)],
+            x_bounds: (GridCoordinate(0), GridCoordinate(2)),
+        }];
+        let (mut result_iter, result_y) = Grid::<usize>::determine_ys(0, &horizontals, 0);
+
+        assert_eq!(5, result_y);
+
+        let first_res = result_iter.next().expect("Should return 1 result");
+        assert_eq!(2, first_res.1);
+
+        assert!(result_iter.next().is_none());
     }
 }

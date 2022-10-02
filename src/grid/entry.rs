@@ -1,4 +1,4 @@
-use std::ops::Add;
+use std::{fmt::Debug, ops::Add};
 
 use crate::LineGlyphs;
 
@@ -13,6 +13,21 @@ pub enum Entry<'g, ID> {
     Node(LevelEntry<'g, ID>, usize),
     OpenParen,
     CloseParen,
+}
+
+impl<'g, ID> Debug for Entry<'g, ID> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Empty => f.debug_struct("Empty").finish(),
+            Self::Horizontal(_) => f.debug_struct("Horizontal").finish(),
+            Self::Veritcal(_) => f.debug_struct("Veritcal").finish(),
+            Self::Cross(_) => f.debug_struct("Cross").finish(),
+            Self::ArrowDown(_) => f.debug_struct("ArrowDown").finish(),
+            Self::Node(_, _) => f.debug_struct("Node").finish(),
+            Self::OpenParen => f.debug_struct("OpenParen").finish(),
+            Self::CloseParen => f.debug_struct("CloseParen").finish(),
+        }
+    }
 }
 
 impl<'g, ID> Add<Entry<'g, ID>> for &&mut Entry<'g, ID>
@@ -59,7 +74,7 @@ where
             }
             (Entry::Cross(Some(_)), Entry::Veritcal(_)) => Entry::Cross(None),
             (s, o) => {
-                dbg!(std::mem::discriminant(*s), std::mem::discriminant(&o));
+                dbg!(s, o);
 
                 dbg!(
                     std::mem::discriminant(&Entry::<'g, ID>::Empty),
