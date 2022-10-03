@@ -7,6 +7,7 @@ Contains minor QoL improvements
 * Fixed incorrect Node/Edge spacing (#10)
 * Switched to the Builder-Pattern for the Glyph configuration
 * Internal refactoring allowing for more configuration in the future
+* Fixed bug with node allocation
 
 # [0.2] - 7.6.2022
 This contains a large overhaul of the API so not every detail will be listed here.
