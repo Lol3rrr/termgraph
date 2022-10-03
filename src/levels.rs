@@ -5,10 +5,14 @@ use crate::{
     Config,
 };
 
+pub struct Level<'g, ID> {
+    pub(crate) nodes: Vec<&'g ID>,
+}
+
 pub fn levels<'g, ID, T>(
     agraph: &AcyclicDirectedGraph<'g, ID, T>,
     config: &Config<ID, T>,
-) -> Vec<Vec<&'g ID>>
+) -> Vec<Level<'g, ID>>
 where
     ID: Hash + Eq,
 {
@@ -23,11 +27,12 @@ fn assign_levels<'g, ID, T>(
     ordering: Vec<&'g ID>,
     graph: &MinimalAcyclicDirectedGraph<'g, ID, T>,
     max_per_level: usize,
-) -> Vec<Vec<&'g ID>>
+) -> Vec<Level<'g, ID>>
 where
     ID: Hash + Eq,
 {
-    let mut levels: Vec<Vec<&'g ID>> = Vec::with_capacity(graph.inner.nodes.len() / max_per_level);
+    let mut levels: Vec<Level<'g, ID>> =
+        Vec::with_capacity(graph.inner.nodes.len() / max_per_level);
     let mut vertex_levels: HashMap<&'g ID, usize> = HashMap::new();
 
     for v in ordering.into_iter().rev() {
@@ -45,18 +50,19 @@ where
                 Some(l) => l,
                 None => {
                     levels.extend(
-                        (0..(v_level + 1).saturating_sub(levels.len())).map(|_| Vec::new()),
+                        (0..(v_level + 1).saturating_sub(levels.len()))
+                            .map(|_| Level { nodes: Vec::new() }),
                     );
 
                     levels.get_mut(v_level).expect("")
                 }
             };
 
-            if level.len() == max_per_level {
+            if level.nodes.len() == max_per_level {
                 continue;
             }
 
-            level.push(v);
+            level.nodes.push(v);
             vertex_levels.insert(v, v_level);
 
             break;
@@ -84,8 +90,8 @@ mod tests {
         let result_levels = levels(&agraph, &config);
 
         assert_eq!(3, result_levels.len());
-        assert_eq!(1, result_levels[0].len());
-        assert_eq!(1, result_levels[1].len());
-        assert_eq!(1, result_levels[2].len());
+        assert_eq!(1, result_levels[0].nodes.len());
+        assert_eq!(1, result_levels[1].nodes.len());
+        assert_eq!(1, result_levels[2].nodes.len());
     }
 }

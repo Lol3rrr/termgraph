@@ -4,7 +4,7 @@ use std::{
     hash::Hash,
 };
 
-use crate::{acyclic::AcyclicDirectedGraph, Color, Config, LineGlyphs, NodeFormat};
+use crate::{acyclic::AcyclicDirectedGraph, levels::Level, Color, Config, LineGlyphs, NodeFormat};
 
 mod entry;
 pub use entry::Entry;
@@ -427,7 +427,7 @@ where
     /// Construct the Grid based on the given information about the levels and overall structure
     pub fn construct<T>(
         agraph: &AcyclicDirectedGraph<'g, ID, T>,
-        levels: Vec<Vec<&'g ID>>,
+        levels: Vec<Level<'g, ID>>,
         reved_edges: Vec<(&'g ID, &'g ID)>,
         nfmt: &dyn NodeFormat<ID, T>,
         config: &Config<ID, T>,
@@ -447,6 +447,7 @@ where
             .into_iter()
             .map(|inner_level| {
                 inner_level
+                    .nodes
                     .into_iter()
                     .map(|l| LevelEntry::User(l))
                     .collect()
