@@ -402,7 +402,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Currently Topological Sort is not really determinist because of the HashSets/HashMaps"]
     fn topsort_branched() {
         let graphs = MinimalAcyclicDirectedGraph {
             inner: AcyclicDirectedGraph::new(
@@ -428,8 +427,9 @@ mod tests {
         let sort = graphs.topological_sort();
         dbg!(&sort);
 
-        let expected = vec![&0, &1, &2, &3, &4];
+        let expected1 = vec![&0, &1, &2, &3, &4];
+        let expected2 = vec![&0, &2, &1, &4, &3];
 
-        assert_eq!(expected, sort);
+        assert!(sort == expected1 || sort == expected2);
     }
 }

@@ -6,6 +6,7 @@ Contains minor QoL improvements
 * Added Arrow-Heads to the Edges (#9)
 * Fixed incorrect Node/Edge spacing (#10)
 * Switched to the Builder-Pattern for the Glyph configuration
+* Internal refactoring allowing for more configuration in the future
 
 # [0.2] - 7.6.2022
 This contains a large overhaul of the API so not every detail will be listed here.
@@ -14,7 +15,6 @@ This contains a large overhaul of the API so not every detail will be listed her
 * Added a custom Trait to format the Nodes in the Graph (#2)
 * Improved Color Support (#4, #5)
 * Restructured the API to make it more ergonomic to use
-
 
 # [0.1] - 17.5.2022
 The initial release of the Crate
