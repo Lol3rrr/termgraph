@@ -72,7 +72,13 @@ where
     // TODO
     // Perform permutations on each Level to reduce the crossings of different Paths
 
-    let grid = grid::Grid::construct(&agraph, levels, reved_edges, config.formatter.as_ref());
+    let grid = grid::Grid::construct(
+        &agraph,
+        levels,
+        reved_edges,
+        config.formatter.as_ref(),
+        config,
+    );
     grid.display(config.color_palette.as_ref(), &config.line_glyphs);
     println!();
 }

@@ -4,7 +4,7 @@ use std::{
     hash::Hash,
 };
 
-use crate::{acyclic::AcyclicDirectedGraph, Color, LineGlyphs, NodeFormat};
+use crate::{acyclic::AcyclicDirectedGraph, Color, Config, LineGlyphs, NodeFormat};
 
 mod entry;
 pub use entry::Entry;
@@ -370,12 +370,13 @@ where
     }
 
     /// This is used to actually "draw" the lines between two layers
-    fn connect_layer(
+    fn connect_layer<T>(
         y: &mut usize,
         level: &[LevelEntry<'g, ID>],
         result: &mut InnerGrid<'g, ID>,
         horizontals: Vec<Horizontal<'g, ID>>,
         node_names: &HashMap<&ID, String>,
+        config: &Config<ID, T>,
     ) {
         // Inserts the Nodes at the current y-Level
         Self::insert_nodes(*y, result, level, node_names);
@@ -387,7 +388,8 @@ where
         }
         *y += 1;
 
-        let (hori_iter, lowest_y) = Self::determine_ys(*y - 2, &horizontals, 1);
+        let (hori_iter, lowest_y) =
+            Self::determine_ys(*y - 2, &horizontals, config.vertical_edge_spacing);
         for (hori, y_height) in hori_iter {
             // Draw the horizontal line
             if hori.x_bounds.0 != hori.x_bounds.1 {
@@ -428,6 +430,7 @@ where
         levels: Vec<Vec<&'g ID>>,
         reved_edges: Vec<(&'g ID, &'g ID)>,
         nfmt: &dyn NodeFormat<ID, T>,
+        config: &Config<ID, T>,
     ) -> Self {
         let names: HashMap<&'g ID, String> = agraph
             .nodes
@@ -465,7 +468,7 @@ where
         // Connect all the layers
         let mut y = 0;
         for (level, horizontals) in level_horizontal_iter {
-            Self::connect_layer(&mut y, &level, &mut result, horizontals, &names);
+            Self::connect_layer(&mut y, &level, &mut result, horizontals, &names, config);
         }
 
         Self {

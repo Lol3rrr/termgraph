@@ -112,6 +112,7 @@ pub struct Config<ID, T> {
     pub(crate) formatter: Box<dyn NodeFormat<ID, T>>,
     pub(crate) color_palette: Option<Vec<Color>>,
     pub(crate) max_per_layer: usize,
+    pub(crate) vertical_edge_spacing: usize,
     pub(crate) line_glyphs: LineGlyphs,
 }
 
@@ -120,6 +121,7 @@ impl<ID, T> Config<ID, T> {
     ///
     /// # Default Values
     /// * Colors: disabled
+    /// * Vertical-Edge-Spacing: 1
     pub fn new<F>(nfmt: F, max_per_layer: usize) -> Self
     where
         F: NodeFormat<ID, T> + 'static,
@@ -128,8 +130,15 @@ impl<ID, T> Config<ID, T> {
             formatter: Box::new(nfmt),
             color_palette: None,
             max_per_layer,
+            vertical_edge_spacing: 1,
             line_glyphs: LineGlyphBuilder::ascii().finish(),
         }
+    }
+
+    /// Sets the vertical spacing between the horizontal connecting edges
+    pub fn vertical_edge_spacing(mut self, n_spacing: usize) -> Self {
+        self.vertical_edge_spacing = n_spacing;
+        self
     }
 
     /// Sets the Formatter of this Configuration to the provided one
