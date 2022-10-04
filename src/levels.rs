@@ -20,20 +20,23 @@ where
 
     let ordering = reduced.topological_sort();
 
-    assign_levels(ordering, &reduced, config.max_per_layer)
+    assign_levels(ordering, &reduced, config)
 }
 
 fn assign_levels<'g, ID, T>(
     ordering: Vec<&'g ID>,
     graph: &MinimalAcyclicDirectedGraph<'g, ID, T>,
-    max_per_level: usize,
+    config: &Config<ID, T>,
 ) -> Vec<Level<'g, ID>>
 where
     ID: Hash + Eq,
 {
+    // The size we use here is just a rough guess as to how many levels we might need and is just
+    // there to hopefully reduce the number of reallocations needed
     let mut levels: Vec<Level<'g, ID>> =
-        Vec::with_capacity(graph.inner.nodes.len() / max_per_level);
-    let mut vertex_levels: HashMap<&'g ID, usize> = HashMap::new();
+        Vec::with_capacity(graph.inner.nodes.len() / config.max_per_layer);
+    // We know that every Node will be in this map, so we can preallocate the exact space needed
+    let mut vertex_levels: HashMap<&'g ID, usize> = HashMap::with_capacity(graph.inner.nodes.len());
 
     for v in ordering.into_iter().rev() {
         let initial_level = match graph.outgoing(v) {
@@ -58,7 +61,7 @@ where
                 }
             };
 
-            if level.nodes.len() == max_per_level {
+            if level.nodes.len() >= config.max_per_layer {
                 continue;
             }
 
