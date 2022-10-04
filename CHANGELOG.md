@@ -1,6 +1,6 @@
 # Changelog
 
-# [0.3] - {}.{}.2022
+# [0.3] - 4.10.2022
 Contains minor QoL improvements
 ## Changes
 * Added Arrow-Heads to the Edges (#9)
