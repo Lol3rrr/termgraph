@@ -1,16 +1,26 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{HashMap},
     fmt::{Debug, Display},
     hash::Hash,
 };
 
-use crate::{acyclic::AcyclicDirectedGraph, levels::Level, Color, Config, LineGlyphs, NodeFormat};
+use crate::{acyclic::AcyclicDirectedGraph, levels::Level, Color, Config, LineGlyphs};
 
 mod entry;
 pub use entry::Entry;
 
 mod grid_structure;
 use grid_structure::*;
+
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+enum InternalNode<'g, ID> {
+    User(&'g ID),
+    Dummy {
+        d_id: usize,
+        src: &'g ID,
+        target: &'g ID,
+    },
+}
 
 /// A LevelEntry describes an entry in a given Level of the Graph
 #[derive(Debug)]
@@ -122,8 +132,8 @@ where
 {
     fn generate_horizontal<T>(
         agraph: &AcyclicDirectedGraph<'g, ID, T>,
-        first: &[LevelEntry<'g, ID>],
-        second: &[LevelEntry<'g, ID>],
+        first: &[InternalNode<'g, ID>],
+        second: &[InternalNode<'g, ID>],
         node_names: &HashMap<&ID, String>,
     ) -> Vec<Horizontal<'g, ID>> {
         #[derive(Clone, Copy)]
@@ -133,30 +143,16 @@ where
         struct Index(usize);
 
         // The Entries in the second/lower level mapped to their respective X-Indices
-        let second_entries: HashMap<&ID, (Index, NodeNameLength)> = second
+        let second_entries: HashMap<_, (Index, NodeNameLength)> = second
             .iter()
             .enumerate()
             .map(|(i, id)| {
                 let len = match id {
-                    LevelEntry::User(uid) => node_names.get(uid).map(|n| n.len()).unwrap_or(0),
-                    LevelEntry::Dummy { .. } => 0,
+                    InternalNode::User(uid) => node_names.get(uid).map(|n| n.len()).unwrap_or(0),
+                    _ => 0,
                 };
 
-                (
-                    match id {
-                        LevelEntry::User(id) => *id,
-                        LevelEntry::Dummy { to, .. } => to,
-                    },
-                    (Index(i), NodeNameLength(len)),
-                )
-            })
-            .collect();
-
-        let second_users: HashSet<&ID> = second
-            .iter()
-            .filter_map(|entry| match entry {
-                LevelEntry::User(id) => Some(*id),
-                _ => None,
+                (id, (Index(i), NodeNameLength(len)))
             })
             .collect();
 
@@ -168,37 +164,60 @@ where
             let offset: usize = first
                 .iter()
                 .take(raw_x)
-                .map(|id| {
-                    if id.is_user() {
-                        node_names.get(id.id()).map(|n| n.len()).unwrap_or(0)
-                    } else {
-                        1
-                    }
+                .map(|id| match id {
+                    InternalNode::User(id) => node_names.get(id).map(|n| n.len()).unwrap_or(0),
+                    InternalNode::Dummy { .. } => 1,
                 })
                 .sum();
 
             // Caclulate the actual Coordinate based on the Entry itself as User and Dummy entries have slightly different behaviour
-            let cord = if e.is_user() {
-                let in_node_offset = node_names.get(e.id()).map(|s| s.len()).unwrap_or(0);
-                raw_x * 2 + offset + in_node_offset / 2 + 1
-            } else {
-                raw_x * 2 + offset + 1
+            let cord = match e {
+                InternalNode::User(id) => {
+                    let in_node_offset = node_names.get(id).map(|s| s.len()).unwrap_or(0);
+                    raw_x * 2 + offset + in_node_offset / 2 + 1
+                }
+                InternalNode::Dummy { .. } => raw_x * 2 + offset + 1,
             };
 
             (GridCoordinate(cord), e)
         });
 
         let mut temp_horizontal: Vec<_> = first_src_coords
-            .map(|(root, src_entry)| {
+            .filter_map(|(root, src_entry)| {
                 // Connect the Source to its Targets in the lower Level
 
                 // An Iterator over the Successors of the src_entry
-                let succs = src_entry.succ_iter(agraph);
+                // let succs = src_entry.succ_iter(agraph);
+                let succs = match src_entry {
+                    InternalNode::User(id) => {
+                        let raw_succs = agraph.successors(id).cloned().unwrap_or_default();
+                        
+                        Box::new(raw_succs.into_iter().map(|succ_id| {
+                            second.iter().find(|second_id| {
+                                match second_id {
+                                    InternalNode::User(uid) => *uid == succ_id,
+                                    InternalNode::Dummy { src, target, .. } => *src == *id && *target == succ_id,
+                                }
+                            }).expect("")
+                        })) as Box<dyn Iterator<Item = &InternalNode<'g, ID>>>
+                    }
+                    InternalNode::Dummy { src, target, .. } => {
+                        Box::new(core::iter::once(second.iter().find(|second_id| {
+                            match second_id {
+                                InternalNode::User(uid) => uid == target,
+                                InternalNode::Dummy { src: s_src, target: s_target, .. } => src == s_src && target == s_target,
+                            }
+                        }).unwrap())) as Box<dyn Iterator<Item = &InternalNode<'g, ID>>>
+                    }
+                };
 
                 let targets: Vec<_> = succs
                     .map(|t_id| {
                         let (index, in_node_offset) = match second_entries.get(t_id).copied() {
-                            Some((i, len)) => (i.0, len.0),
+                            Some((i, len)) => {
+
+                                (i.0, len.0)
+                            },
                             None => {
                                 unreachable!("We previously checked and inserted all missing Entries/Dummy Nodes")
                             }
@@ -209,10 +228,11 @@ where
                             .iter()
                             .take(index)
                             .map(|id| {
-                                if id.is_user() {
-                                    node_names.get(id.id()).map(|n| n.len()).unwrap_or(0)
-                                } else {
-                                    1
+                                match id {
+                                    InternalNode::User(id) => {
+                                        node_names.get(id).map(|n| n.len()).unwrap_or(0)
+                                    }
+                                    _ => 1,
                                 }
                             })
                             .sum();
@@ -220,7 +240,7 @@ where
                         // Calculate the Coordinate of the Target
                         (
                             GridCoordinate(index * 2 + offset + in_node_offset / 2 + 1),
-                            !second_users.contains(t_id),
+                            matches!(t_id, InternalNode::Dummy { .. }),
                         )
                     })
                     .collect();
@@ -236,12 +256,19 @@ where
                     .max()
                     .unwrap();
 
-                Horizontal {
+                if targets.is_empty() {
+                    return None;
+                }
+
+                Some(Horizontal {
                     src_x: root,
-                    src: src_entry.id(),
+                    src: match src_entry {
+                        InternalNode::User(uid) => *uid,
+                        InternalNode::Dummy { src, .. } => *src,
+                    },
                     targets,
                     x_bounds: (sx, tx),
-                }
+                })
             })
             .collect();
 
@@ -252,7 +279,7 @@ where
         // unnecessary crossings in the Edges
         temp_horizontal.sort_by_cached_key(|hori| {
             let sum_targets: usize = hori.targets.iter().map(|cord| cord.0 .0).sum();
-            let target_count = hori.targets.len();
+            let target_count = hori.targets.len().max(1);
             sum_targets / target_count
         });
         temp_horizontal
@@ -261,50 +288,26 @@ where
     /// This is responsible for generating all the Horizontals needed for each Layer
     fn generate_horizontals<T>(
         agraph: &AcyclicDirectedGraph<'g, ID, T>,
-        levels: &mut [Vec<LevelEntry<'g, ID>>],
+        levels: &[Vec<InternalNode<'g, ID>>],
         node_names: &HashMap<&ID, String>,
-    ) -> Vec<Vec<Horizontal<'g, ID>>> {
-        for idx in 0..(levels.len() - 1) {
-            let (first_half, second_half) = levels.split_at_mut(idx + 1);
-
-            // The upper and lower level that need to be connected
-            let first = first_half.get_mut(idx).expect("");
-            let second = second_half.get_mut(0).unwrap();
-
-            for entry in first {
-                let succs = entry.succ_iter(agraph);
-
-                for succ in succs {
-                    if !second.iter().any(|s| match s {
-                        LevelEntry::Dummy { .. } => false,
-                        LevelEntry::User(id) => *id == succ,
-                    }) {
-                        second.push(LevelEntry::Dummy {
-                            from: entry.id(),
-                            to: succ,
-                        });
-                    }
-                }
-            }
-        }
-
-        (0..(levels.len() - 1))
-            .map(|index| {
-                let (first_half, second_half) = levels.split_at_mut(index + 1);
-
+    ) -> impl Iterator<Item = Vec<Horizontal<'g, ID>>> {
+        levels
+            .windows(2)
+            .map(|window| {
                 // The upper and lower level that need to be connected
-                let first = first_half.get_mut(index).expect("");
-                let second = second_half.get_mut(0).unwrap();
+                let first = &window[0];
+                let second = &window[1];
 
                 Self::generate_horizontal(agraph, first, second, node_names)
             })
-            .collect()
+            .collect::<Vec<_>>()
+            .into_iter()
     }
 
     fn insert_nodes(
         y: usize,
         result: &mut InnerGrid<'g, ID>,
-        level: &[LevelEntry<'g, ID>],
+        level: &[InternalNode<'g, ID>],
         node_names: &HashMap<&ID, String>,
     ) {
         let row = result.row_mut(y);
@@ -312,12 +315,12 @@ where
         for entry in level.iter() {
             cursor.set(Entry::Empty);
             match &entry {
-                LevelEntry::User(id) => {
+                InternalNode::User(id) => {
                     let name = node_names.get(id).expect("");
-                    cursor.set_node(entry.clone(), name);
+                    cursor.set_node(LevelEntry::User(id), name);
                 }
-                LevelEntry::Dummy { .. } => {
-                    cursor.set_node(entry.clone(), "");
+                InternalNode::Dummy { src, target, .. } => {
+                    cursor.set_node(LevelEntry::Dummy { from: src, to: target }, "");
                 }
             };
 
@@ -372,7 +375,7 @@ where
     /// This is used to actually "draw" the lines between two layers
     fn connect_layer<T>(
         y: &mut usize,
-        level: &[LevelEntry<'g, ID>],
+        level: &[InternalNode<'g, ID>],
         result: &mut InnerGrid<'g, ID>,
         horizontals: Vec<Horizontal<'g, ID>>,
         node_names: &HashMap<&ID, String>,
@@ -424,26 +427,75 @@ where
         *y = lowest_y;
     }
 
+    fn generate_levels<T>(
+        levels: Vec<Level<'g, ID>>,
+        agraph: &AcyclicDirectedGraph<'g, ID, T>,
+    ) -> Vec<Vec<InternalNode<'g, ID>>> {
+        if levels.is_empty() {
+            return Vec::new();
+        }
+
+        let mut dummy_id = 0;
+
+        let mut internal_levels = levels.iter().map(|level| {
+            level.nodes.iter().map(|n| InternalNode::User(*n)).collect::<Vec<_>>()
+        }).collect::<Vec<_>>();
+
+        for index in 0..levels.len()-1 {
+            let split = internal_levels.split_at_mut(index+1);
+            let first = split.0.last_mut().unwrap();
+            let second = split.1.first_mut().unwrap();
+
+
+            for fnode in first.iter() {
+                match fnode {
+                    InternalNode::User(uid) => {
+                        let graph_succs = agraph.successors(uid).cloned().unwrap_or_default();
+
+                        for gsucc in graph_succs {
+                            if !second.iter().any(|sid| match sid {
+                                InternalNode::User(uid) => gsucc == *uid,
+                                _ => false,
+                            }) {
+                                let id = dummy_id;
+                                dummy_id += 1;
+                                second.push(InternalNode::Dummy { d_id: id, src: uid, target: gsucc });
+                            }
+                        }
+                    }
+                    InternalNode::Dummy {  src, target, .. } => {
+                        if !second.iter().any(|sid| match sid {
+                            InternalNode::User(uid) => target == uid,
+                            _ => false,
+                        }) {
+                            let id = dummy_id;
+                            dummy_id += 1;
+                            second.push(InternalNode::Dummy { d_id: id, src: *src, target: *target });
+                        }
+                    }
+                };
+            }
+        }
+
+
+        internal_levels
+    }
+
     /// Construct the Grid based on the given information about the levels and overall structure
     pub fn construct<T>(
         agraph: &AcyclicDirectedGraph<'g, ID, T>,
         levels: Vec<Level<'g, ID>>,
         reved_edges: Vec<(&'g ID, &'g ID)>,
-        nfmt: &dyn NodeFormat<ID, T>,
         config: &Config<ID, T>,
+        names: HashMap<&'g ID, String>,
     ) -> Self {
-        let names: HashMap<&'g ID, String> = agraph
-            .nodes
-            .iter()
-            .map(|(id, value)| (*id, nfmt.format_node(*id, value)))
-            .collect();
-
         // TODO
         // Figure out how to correctly incorporate the reversed Edges into the generated Grid
         let _ = reved_edges;
 
         // Convert all the previously generated Levels into the Levels we need for this step
-        let mut levels: Vec<Vec<LevelEntry<'g, ID>>> = levels
+        /*
+        let levels: Vec<Vec<LevelEntry<'g, ID>>> = levels
             .into_iter()
             .map(|inner_level| {
                 inner_level
@@ -453,18 +505,23 @@ where
                     .collect()
             })
             .collect();
+            */
 
-        let mut result = InnerGrid::new();
+        // let levels = Self::insert_dummies(agraph, levels.clone());
+
+        let internal_levels = Self::generate_levels(levels, agraph);
 
         // We first generate all the horizontals to connect all the Levels
-        let horizontal = Self::generate_horizontals(agraph, &mut levels, &names);
+        let horizontal = Self::generate_horizontals(agraph, &internal_levels, &names);
 
         // An Iterator over all the Layers and the Horizontal connecting it to the Layer below
-        let level_horizontal_iter = levels.into_iter().zip(
+        let level_horizontal_iter = internal_levels.into_iter().zip(
             horizontal
                 .into_iter()
                 .chain(std::iter::repeat_with(Vec::new)),
         );
+
+        let mut result = InnerGrid::new();
 
         // Connect all the layers
         let mut y = 0;
@@ -509,6 +566,7 @@ where
 
 #[cfg(test)]
 mod tests {
+
     use super::*;
 
     #[test]
@@ -555,4 +613,5 @@ mod tests {
 
         assert!(result_iter.next().is_none());
     }
+
 }

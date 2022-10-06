@@ -12,6 +12,7 @@ pub struct Level<'g, ID> {
 pub fn levels<'g, ID, T>(
     agraph: &AcyclicDirectedGraph<'g, ID, T>,
     config: &Config<ID, T>,
+    node_names: &HashMap<&'g ID, String>,
 ) -> Vec<Level<'g, ID>>
 where
     ID: Hash + Eq,
@@ -20,13 +21,14 @@ where
 
     let ordering = reduced.topological_sort();
 
-    assign_levels(ordering, &reduced, config)
+    assign_levels(ordering, &reduced, config, node_names)
 }
 
 fn assign_levels<'g, ID, T>(
     ordering: Vec<&'g ID>,
     graph: &MinimalAcyclicDirectedGraph<'g, ID, T>,
     config: &Config<ID, T>,
+    node_names: &HashMap<&'g ID, String>,
 ) -> Vec<Level<'g, ID>>
 where
     ID: Hash + Eq,
@@ -61,7 +63,21 @@ where
                 }
             };
 
+            // Check for max nodes per layer
             if level.nodes.len() >= config.max_per_layer {
+                continue;
+            }
+
+            // Check for max glyphs per layer
+            let current_glyph_width: usize = level
+                .nodes
+                .iter()
+                .map(|n| node_names.get(n).map(|name| name.len()).unwrap_or(0) + 2)
+                .sum();
+            let current_node_width = node_names.get(v).map(|name| name.len()).unwrap_or(0);
+            let upper_bound = config.glyph_width().saturating_sub(current_node_width + 3);
+            if current_glyph_width >= upper_bound {
+                debug_assert!(current_node_width < config.glyph_width() - 3);
                 continue;
             }
 
@@ -83,18 +99,45 @@ mod tests {
     use super::*;
 
     #[test]
-    fn assign_levels_spillover() {
+    fn assign_levels_spillover_maxnodes() {
         let config = Config::new(IDFormatter::new(), 1);
         let mut graph = DirectedGraph::new();
         graph.add_nodes([(0, "first"), (1, "second"), (2, "third")]);
         graph.add_edges([(0, 1), (0, 2)]);
 
+        let names: HashMap<_, _> = [].into_iter().collect();
+
         let (agraph, _) = graph.to_acyclic();
-        let result_levels = levels(&agraph, &config);
+        let result_levels = levels(&agraph, &config, &names);
 
         assert_eq!(3, result_levels.len());
         assert_eq!(1, result_levels[0].nodes.len());
         assert_eq!(1, result_levels[1].nodes.len());
         assert_eq!(1, result_levels[2].nodes.len());
+    }
+
+    #[test]
+    fn assign_levels_spillover_maxwidth() {
+        let config = Config::new(IDFormatter::new(), 3).max_glyphs_per_layer(14);
+        let mut graph = DirectedGraph::new();
+        graph.add_nodes([(0, "first"), (1, "second"), (2, "third"), (3, "fourth")]);
+        graph.add_edges([(0, 1), (0, 2), (0, 3)]);
+
+        let names: HashMap<_, _> = [
+            (&0, "(0)".to_string()),
+            (&1, "(1)".to_string()),
+            (&2, "(2)".to_string()),
+            (&3, "(3)".to_string()),
+        ]
+        .into_iter()
+        .collect();
+
+        let (agraph, _) = graph.to_acyclic();
+        let result_levels = levels(&agraph, &config, &names);
+
+        assert_eq!(3, result_levels.len());
+        assert_eq!(1, result_levels[0].nodes.len());
+        assert_eq!(1, result_levels[1].nodes.len());
+        assert_eq!(2, result_levels[2].nodes.len());
     }
 }

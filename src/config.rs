@@ -112,6 +112,7 @@ pub struct Config<ID, T> {
     pub(crate) formatter: Box<dyn NodeFormat<ID, T>>,
     pub(crate) color_palette: Option<Vec<Color>>,
     pub(crate) max_per_layer: usize,
+    max_glyphs_per_layer: usize,
     pub(crate) vertical_edge_spacing: usize,
     pub(crate) line_glyphs: LineGlyphs,
 }
@@ -130,6 +131,7 @@ impl<ID, T> Config<ID, T> {
             formatter: Box::new(nfmt),
             color_palette: None,
             max_per_layer,
+            max_glyphs_per_layer: usize::MAX,
             vertical_edge_spacing: 1,
             line_glyphs: LineGlyphBuilder::ascii().finish(),
         }
@@ -188,5 +190,16 @@ impl<ID, T> Config<ID, T> {
     {
         self.line_glyphs = glyphs.into();
         self
+    }
+
+    /// Set the max glyph width per layer
+    pub fn max_glyphs_per_layer(mut self, max: usize) -> Self {
+        self.max_glyphs_per_layer = max;
+        self
+    }
+
+    /// Get the number of Glyphs that can be placed
+    pub(crate) fn glyph_width(&self) -> usize {
+        self.max_glyphs_per_layer
     }
 }

@@ -25,7 +25,7 @@
 #![warn(missing_docs)]
 
 mod graph;
-use std::{fmt::Display, hash::Hash};
+use std::{collections::HashMap, fmt::Display, hash::Hash};
 
 pub use graph::DirectedGraph;
 
@@ -67,15 +67,16 @@ where
     }
 
     let (agraph, reved_edges) = graph.to_acyclic();
-    let levels = levels::levels(&agraph, config);
 
-    let grid = grid::Grid::construct(
-        &agraph,
-        levels,
-        reved_edges,
-        config.formatter.as_ref(),
-        config,
-    );
+    let names: HashMap<&ID, String> = agraph
+        .nodes
+        .iter()
+        .map(|(id, value)| (*id, config.formatter.format_node(*id, value)))
+        .collect();
+
+    let levels = levels::levels(&agraph, config, &names);
+
+    let grid = grid::Grid::construct(&agraph, levels, reved_edges, config, names);
     grid.display(config.color_palette.as_ref(), &config.line_glyphs);
     println!();
 }
