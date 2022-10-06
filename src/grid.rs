@@ -31,12 +31,6 @@ pub enum LevelEntry<'g, ID> {
     Dummy { from: &'g ID, to: &'g ID },
 }
 
-pub enum LevelEntryIter<'ag, 'g, ID> {
-    User(std::collections::hash_set::Iter<'ag, &'g ID>),
-    UserEmpty,
-    Dummy(core::iter::Once<&'g ID>),
-}
-
 impl<'g, ID> LevelEntry<'g, ID> {
     /// The ID of the Source
     pub fn id(&self) -> &'g ID {
@@ -50,22 +44,6 @@ impl<'g, ID> LevelEntry<'g, ID> {
     pub fn is_user(&self) -> bool {
         matches!(self, Self::User(_))
     }
-
-    pub fn succ_iter<'ag, T>(
-        &self,
-        graph: &'ag AcyclicDirectedGraph<'g, ID, T>,
-    ) -> LevelEntryIter<'ag, 'g, ID>
-    where
-        ID: Hash + Eq,
-    {
-        match self {
-            Self::Dummy { to, .. } => LevelEntryIter::Dummy(core::iter::once(to)),
-            Self::User(id) => match graph.successors(id) {
-                Some(succs) => LevelEntryIter::User(succs.iter()),
-                None => LevelEntryIter::UserEmpty,
-            },
-        }
-    }
 }
 
 impl<'g, ID> Clone for LevelEntry<'g, ID> {
@@ -73,18 +51,6 @@ impl<'g, ID> Clone for LevelEntry<'g, ID> {
         match &self {
             Self::User(id) => Self::User(id),
             Self::Dummy { from, to } => Self::Dummy { from, to },
-        }
-    }
-}
-
-impl<'ag, 'g, ID> Iterator for LevelEntryIter<'ag, 'g, ID> {
-    type Item = &'g ID;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        match self {
-            Self::UserEmpty => None,
-            Self::User(iter) => iter.next().copied(),
-            Self::Dummy(iter) => iter.next(),
         }
     }
 }
@@ -187,7 +153,6 @@ where
                 // Connect the Source to its Targets in the lower Level
 
                 // An Iterator over the Successors of the src_entry
-                // let succs = src_entry.succ_iter(agraph);
                 let succs = match src_entry {
                     InternalNode::User(id) => {
                         let raw_succs = agraph.successors(id).cloned().unwrap_or_default();
