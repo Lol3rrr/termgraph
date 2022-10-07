@@ -101,6 +101,7 @@ where
         first: &[InternalNode<'g, ID>],
         second: &[InternalNode<'g, ID>],
         node_names: &HashMap<&ID, String>,
+        max_x: usize,
     ) -> Vec<Horizontal<'g, ID>> {
         #[derive(Clone, Copy)]
         struct NodeNameLength(usize);
@@ -143,7 +144,7 @@ where
                     raw_x * 2 + offset + in_node_offset / 2 + 1
                 }
                 InternalNode::Dummy { .. } => raw_x * 2 + offset + 1,
-            };
+            }.min(max_x);
 
             (GridCoordinate(cord), e)
         });
@@ -202,9 +203,11 @@ where
                             })
                             .sum();
 
+                        let raw_x = index * 2 + offset + in_node_offset / 2 + 1;
+
                         // Calculate the Coordinate of the Target
                         (
-                            GridCoordinate(index * 2 + offset + in_node_offset / 2 + 1),
+                            GridCoordinate(raw_x.min(max_x)),
                             matches!(t_id, InternalNode::Dummy { .. }),
                         )
                     })
@@ -255,6 +258,7 @@ where
         agraph: &AcyclicDirectedGraph<'g, ID, T>,
         levels: &[Vec<InternalNode<'g, ID>>],
         node_names: &HashMap<&ID, String>,
+        max_x: usize
     ) -> impl Iterator<Item = Vec<Horizontal<'g, ID>>> {
         levels
             .windows(2)
@@ -263,7 +267,7 @@ where
                 let first = &window[0];
                 let second = &window[1];
 
-                Self::generate_horizontal(agraph, first, second, node_names)
+                Self::generate_horizontal(agraph, first, second, node_names, max_x)
             })
             .collect::<Vec<_>>()
             .into_iter()
@@ -274,10 +278,27 @@ where
         result: &mut InnerGrid<'g, ID>,
         level: &[InternalNode<'g, ID>],
         node_names: &HashMap<&ID, String>,
+        max_x: usize
     ) {
         let row = result.row_mut(y);
         let mut cursor = row.into_cursor();
         for entry in level.iter() {
+            if cursor.next_x() > max_x {
+                cursor.set_x(max_x);
+
+                match &entry {
+                    InternalNode::User(_) => {
+                        unreachable!("");
+                    }
+                    InternalNode::Dummy { src, target, .. } => {
+                        cursor.set_node(LevelEntry::Dummy { from: src, to: target }, "");
+                    }
+                };
+
+
+                continue;
+            }
+
             cursor.set(Entry::Empty);
             match &entry {
                 InternalNode::User(id) => {
@@ -347,7 +368,7 @@ where
         config: &Config<ID, T>,
     ) {
         // Inserts the Nodes at the current y-Level
-        Self::insert_nodes(*y, result, level, node_names);
+        Self::insert_nodes(*y, result, level, node_names, config.glyph_width() - 1);
         *y += 1;
 
         // Insert the Vertical Row below every Node
@@ -459,25 +480,10 @@ where
         let _ = reved_edges;
 
         // Convert all the previously generated Levels into the Levels we need for this step
-        /*
-        let levels: Vec<Vec<LevelEntry<'g, ID>>> = levels
-            .into_iter()
-            .map(|inner_level| {
-                inner_level
-                    .nodes
-                    .into_iter()
-                    .map(|l| LevelEntry::User(l))
-                    .collect()
-            })
-            .collect();
-            */
-
-        // let levels = Self::insert_dummies(agraph, levels.clone());
-
         let internal_levels = Self::generate_levels(levels, agraph);
 
         // We first generate all the horizontals to connect all the Levels
-        let horizontal = Self::generate_horizontals(agraph, &internal_levels, &names);
+        let horizontal = Self::generate_horizontals(agraph, &internal_levels, &names, config.glyph_width()-1);
 
         // An Iterator over all the Layers and the Horizontal connecting it to the Layer below
         let level_horizontal_iter = internal_levels.into_iter().zip(

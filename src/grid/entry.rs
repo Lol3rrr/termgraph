@@ -4,13 +4,28 @@ use crate::LineGlyphs;
 
 use super::LevelEntry;
 
+pub enum EntryNode<'g, ID> {
+    User(&'g ID),
+    SingleSrc(&'g ID),
+    MultiSrc,
+}
+
+impl<'g, ID> From<LevelEntry<'g, ID>> for EntryNode<'g, ID> {
+    fn from(src: LevelEntry<'g, ID>) -> Self {
+        match src {
+            LevelEntry::User(id) => EntryNode::User(id),
+            LevelEntry::Dummy { from, .. } => EntryNode::SingleSrc(from),
+        }
+    }
+}
+
 pub enum Entry<'g, ID> {
     Empty,
     Horizontal(&'g ID),
     Veritcal(Option<&'g ID>),
     Cross(Option<&'g ID>),
     ArrowDown(Option<&'g ID>),
-    Node(LevelEntry<'g, ID>, usize),
+    Node(EntryNode<'g, ID>, usize),
     OpenParen,
     CloseParen,
 }
@@ -73,16 +88,20 @@ where
                 Entry::Cross(Some(vsrc))
             }
             (Entry::Cross(Some(_)), Entry::Veritcal(_)) => Entry::Cross(None),
+            (
+                Entry::Node(EntryNode::SingleSrc(fid), _),
+                Entry::Node(EntryNode::SingleSrc(sid), _),
+            ) if sid == *fid => Entry::Node(EntryNode::SingleSrc(sid), 0),
+            (Entry::Node(EntryNode::SingleSrc(_), _), Entry::Node(EntryNode::SingleSrc(_), _)) => {
+                Entry::Node(EntryNode::MultiSrc, 0)
+            }
+            (Entry::Node(EntryNode::MultiSrc, _), Entry::Node(EntryNode::SingleSrc(_), _)) => {
+                Entry::Node(EntryNode::MultiSrc, 0)
+            }
             (s, o) => {
                 dbg!(s, o);
 
-                dbg!(
-                    std::mem::discriminant(&Entry::<'g, ID>::Empty),
-                    std::mem::discriminant(&Entry::<'g, ID>::Horizontal),
-                    std::mem::discriminant(&Entry::<'g, ID>::Veritcal),
-                    std::mem::discriminant(&Entry::<'g, ID>::Cross),
-                );
-                todo!()
+                unreachable!("")
             }
         }
     }
@@ -125,11 +144,12 @@ impl<'g, ID> Entry<'g, ID> {
             },
             Entry::Node(_, part) if *part > 0 => {}
             Entry::Node(id, _) => match id {
-                LevelEntry::User(id) => print!("{}", get_name(id)),
-                LevelEntry::Dummy { from, .. } => match get_color(*from) {
+                EntryNode::User(id) => print!("{}", get_name(id)),
+                EntryNode::SingleSrc(from) => match get_color(*from) {
                     Some(c) => print!("\x1b[{}m|\x1b[0m", c),
                     None => print!("|"),
                 },
+                EntryNode::MultiSrc => print!("|"),
             },
         };
     }

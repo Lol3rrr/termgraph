@@ -100,6 +100,14 @@ impl<'r, 'g, ID> Cursor<'r, 'g, ID>
 where
     ID: PartialEq,
 {
+    pub fn next_x(&self) -> usize {
+        self.x
+    }
+
+    pub fn set_x(&mut self, n_x: usize) {
+        self.x = n_x;
+    }
+
     /// Returns the Middle Index of the Node
     pub fn set_node(&mut self, entry: LevelEntry<'g, ID>, name: &str) -> GridCoordinate {
         let length = name.len();
@@ -112,13 +120,13 @@ where
         if entry.is_user() {
             for part in 0..length {
                 let target = self.row.get_mut(self.x).unwrap();
-                *target = &target + Entry::Node(entry.clone(), part);
+                *target = &target + Entry::Node(entry.clone().into(), part);
 
                 self.x += 1;
             }
         } else {
             let target = self.row.get_mut(self.x).unwrap();
-            *target = &target + Entry::Node(entry.clone(), 0);
+            *target = &target + Entry::Node(entry.clone().into(), 0);
 
             self.x += 1;
         }
