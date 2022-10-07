@@ -1,5 +1,10 @@
 # Changelog
 
+# [0.4] - {}.{}.{}
+Addde more features
+## Changes
+* Added Max-Glyph-Width configuration option (#16)
+
 # [0.3] - 4.10.2022
 Contains minor QoL improvements
 ## Changes
