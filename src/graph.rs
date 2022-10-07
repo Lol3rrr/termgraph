@@ -87,49 +87,17 @@ where
             return (AcyclicDirectedGraph::new(anodes, aedges), Vec::new());
         }
 
-        // A List of Edges that were reversed to make the Graph acyclic
-        let mut reversed_edges: Vec<(&ID, &ID)> = Vec::new();
+        let feedback_arc =
+            feedback_arc_set::calulate(anodes.keys().cloned().collect(), aedges.clone());
 
-        // Break up the Cycles
-        loop {
-            // Determine the current Strongly-Connected-Components
-            let current_sccs = tarjan::sccs((&anodes, &aedges));
-            if current_sccs.iter().all(|s| s.len() == 1) {
-                break;
-            }
-
-            // Get the first Strongly Connected Component with at least 2 Elements
-            let mut first_scc = current_sccs.into_iter().find(|s| s.len() > 1).expect(
-                "We just checked that there is at least one SCC with more than 1 Verticies",
-            );
-
-            // Get the last Entry of the Component
-            let last_part = first_scc
-                .pop()
-                .copied()
-                .expect("We know that the SCC has at least 2 Verticies");
-
-            // The Vertices reachable from the last Component
-            let last_targets = aedges.get(last_part).expect("");
-
-            // Search for a Vertex in the Component that is reachable from the last Entry
-            let first_part = first_scc
-                .into_iter()
-                .find(|target| last_targets.contains(*target))
-                .copied()
-                .expect("We know that the SCC has at least 1 more remaining Vertex");
-
-            // Store the Edge as being reversed
-            reversed_edges.push((last_part, first_part));
-
-            // Reverse the Edges
-            let last_targets = aedges.get_mut(last_part).expect("");
-            last_targets.remove(first_part);
-            let first_targets = aedges.get_mut(first_part).expect("");
-            first_targets.insert(last_part);
+        for edge in feedback_arc.iter() {
+            let last_targets = aedges.get_mut(edge.0).expect("");
+            last_targets.remove(edge.1);
+            let first_targets = aedges.get_mut(edge.1).expect("");
+            first_targets.insert(edge.0);
         }
 
-        (AcyclicDirectedGraph::new(anodes, aedges), reversed_edges)
+        (AcyclicDirectedGraph::new(anodes, aedges), feedback_arc)
     }
 }
 
