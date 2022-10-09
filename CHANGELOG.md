@@ -5,6 +5,7 @@ Addde more features
 ## Changes
 * Added Max-Glyph-Width configuration option (#16)
 * Added support for Cyclic Graphs (#14)
+* Added support for custom output targets (#17)
 
 # [0.3] - 4.10.2022
 Contains minor QoL improvements
