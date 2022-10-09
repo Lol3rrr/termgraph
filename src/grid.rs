@@ -20,6 +20,12 @@ enum InternalNode<'g, ID> {
         src: &'g ID,
         target: &'g ID,
     },
+    /// Src and Target are already in their original orientation and dont need to be flipped again
+    ReverseDummy {
+        d_id: usize,
+        src: &'g ID,
+        target: &'g ID,
+    },
 }
 
 /// A LevelEntry describes an entry in a given Level of the Graph
@@ -58,24 +64,55 @@ impl<'g, ID> Clone for LevelEntry<'g, ID> {
 /// A Horizontal is used to connect from a single Source in the upper layer to one or multiple
 /// Targets in the lower layer
 #[derive(Debug)]
-struct Horizontal<'g, ID> {
-    /// The X-Coordinate of the Source in the upper Level
-    src_x: GridCoordinate,
-    /// The ID of the Source
-    src: &'g ID,
-    /// The X-Coordinates of the Targets in the lower Level
-    targets: Vec<(GridCoordinate, bool)>,
-    /// A touple of the smallest and largest x coordinates
-    x_bounds: (GridCoordinate, GridCoordinate),
+enum Horizontal<'g, ID> {
+    TopBottom {
+        /// The X-Coordinate of the Source in the upper Level
+        src_x: GridCoordinate,
+        /// The ID of the Source
+        src: &'g ID,
+        /// The X-Coordinates of the Targets in the lower Level
+        targets: Vec<(GridCoordinate, bool)>,
+        /// A touple of the smallest and largest x coordinates
+        x_bounds: (GridCoordinate, GridCoordinate),
+    },
+    BottomTop {
+        src_x: GridCoordinate,
+        src: &'g ID,
+        target: GridCoordinate,
+        x_bounds: (GridCoordinate, GridCoordinate),
+    },
+    TopTop {
+        src_x: GridCoordinate,
+        src: &'g ID,
+        target: GridCoordinate,
+        x_bounds: (GridCoordinate, GridCoordinate),
+    },
+    BottomBottom {
+        src_x: GridCoordinate,
+        src: &'g ID,
+        target: GridCoordinate,
+        x_bounds: (GridCoordinate, GridCoordinate)
+    }
+}
+
+impl<'g, ID> Horizontal<'g, ID> {
+    pub fn x_bounds(&self) -> (GridCoordinate, GridCoordinate) {
+        match self {
+            Self::TopBottom { x_bounds , .. } => *x_bounds,
+            Self::BottomTop { x_bounds, .. } => *x_bounds,
+            Self::TopTop {  x_bounds, .. } => *x_bounds,
+            Self::BottomBottom { x_bounds, .. } => *x_bounds,
+        }
+    }
 }
 
 impl<'g, ID> Clone for Horizontal<'g, ID> {
     fn clone(&self) -> Self {
-        Self {
-            src_x: self.src_x,
-            src: self.src,
-            targets: self.targets.clone(),
-            x_bounds: self.x_bounds,
+        match self {
+            Self::TopBottom { src_x, src, targets, x_bounds } => Self::TopBottom { src_x: *src_x, src, targets: targets.clone(), x_bounds: *x_bounds },
+            Self::BottomTop { src_x, src, target, x_bounds } => Self::BottomTop { src_x: *src_x, src: *src, target: *target, x_bounds: *x_bounds },
+            Self::TopTop { src_x, src, target, x_bounds } => Self::TopTop { src_x: *src_x, src: *src, target: *target, x_bounds: *x_bounds },
+            Self::BottomBottom { src_x, src, target, x_bounds } => Self::BottomBottom { src_x: *src_x, src: *src, target: *target, x_bounds: *x_bounds },
         }
     }
 }
@@ -103,11 +140,84 @@ where
         node_names: &HashMap<&ID, String>,
         max_x: usize,
     ) -> Vec<Horizontal<'g, ID>> {
+        // Special case
+        if first.is_empty() {
+            assert!(!second.is_empty());
+
+            let reverse_dummies = second.iter().enumerate().filter_map(|(i, n)| match n {
+                InternalNode::ReverseDummy { d_id, src, target } => Some((i, src, target)),
+                _ => None,
+            });
+
+            return reverse_dummies.map(|(src_index, src, target)| {
+                let (target_index, target_user_id) = second.iter().enumerate().find_map(|(i, n)| {
+                    match n {
+                        InternalNode::User(uid) => Some((i, *uid)),
+                        _ => None,
+                    }
+                }).unwrap();
+
+
+                // Calculate the Offset until the Target
+                let offset: usize = second
+                    .iter()
+                    .take(target_index)
+                    .map(|id| {
+                        match id {
+                            InternalNode::User(id) => {
+                                node_names.get(id).map(|n| n.len()).unwrap_or(0)
+                            }
+                            _ => 1,
+                        }
+                    })
+                    .sum();
+
+                let raw_x = target_index * 2 + offset + node_names.get(target_user_id).map(|n| n.len()/2).unwrap_or(0) + 1;
+                let target_x = raw_x.min(max_x);
+
+                // Calculate the Offset until the Target
+                let offset: usize = second
+                    .iter()
+                    .take(src_index)
+                    .map(|id| {
+                        match id {
+                            InternalNode::User(id) => {
+                                node_names.get(id).map(|n| n.len()).unwrap_or(0)
+                            }
+                            _ => 1,
+                        }
+                    })
+                    .sum();
+
+                let raw_x = target_index * 2 + offset + 3;
+                let src_x = raw_x.min(max_x);
+
+                let sx = GridCoordinate(src_x.min(target_x));
+                let tx = GridCoordinate(src_x.max(target_x));
+
+                Horizontal::BottomBottom { src_x: GridCoordinate(src_x), src: *src, target: GridCoordinate(target_x), x_bounds: (sx, tx) }
+            }).collect();
+        }
+
         #[derive(Clone, Copy)]
         struct NodeNameLength(usize);
 
         #[derive(Clone, Copy)]
         struct Index(usize);
+
+        // The Entries in the second/lower level mapped to their respective X-Indices
+        let first_entries: HashMap<_, (Index, NodeNameLength)> = first
+            .iter()
+            .enumerate()
+            .map(|(i, id)| {
+                let len = match id {
+                    InternalNode::User(uid) => node_names.get(uid).map(|n| n.len()).unwrap_or(0),
+                    _ => 0,
+                };
+
+                (id, (Index(i), NodeNameLength(len)))
+            })
+            .collect();
 
         // The Entries in the second/lower level mapped to their respective X-Indices
         let second_entries: HashMap<_, (Index, NodeNameLength)> = second
@@ -134,6 +244,7 @@ where
                 .map(|id| match id {
                     InternalNode::User(id) => node_names.get(id).map(|n| n.len()).unwrap_or(0),
                     InternalNode::Dummy { .. } => 1,
+                    InternalNode::ReverseDummy { .. } => 1,
                 })
                 .sum();
 
@@ -144,17 +255,18 @@ where
                     raw_x * 2 + offset + in_node_offset / 2 + 1
                 }
                 InternalNode::Dummy { .. } => raw_x * 2 + offset + 1,
+                InternalNode::ReverseDummy { .. } => raw_x * 2 + offset + 1,
             }.min(max_x);
 
             (GridCoordinate(cord), e)
         });
 
-        let mut temp_horizontal: Vec<_> = first_src_coords
+        let temp_horizontal: Vec<_> = first_src_coords
             .filter_map(|(root, src_entry)| {
                 // Connect the Source to its Targets in the lower Level
 
                 // An Iterator over the Successors of the src_entry
-                let succs = match src_entry {
+                let succs: Box<dyn Iterator<Item = (&InternalNode<ID>, usize)>> = match src_entry {
                     InternalNode::User(id) => {
                         let raw_succs = agraph.successors(id).cloned().unwrap_or_default();
                         
@@ -163,48 +275,149 @@ where
                                 match second_id {
                                     InternalNode::User(uid) => *uid == succ_id,
                                     InternalNode::Dummy { src, target, .. } => *src == *id && *target == succ_id,
+                                    InternalNode::ReverseDummy { src, target, .. } => *src == *id && *target == succ_id,
                                 }
                             }).expect("")
-                        })) as Box<dyn Iterator<Item = &InternalNode<'g, ID>>>
+                        }).map(|t_id| {
+                            let (index, in_node_offset) = match second_entries.get(t_id).copied() {
+                                Some((i, len)) => {
+                                    (i.0, len.0)
+                                },
+                                None => {
+                                    unreachable!("We previously checked and inserted all missing Entries/Dummy Nodes")
+                                }
+                            };
+    
+                            // Calculate the Offset until the Target
+                            let offset: usize = second
+                                .iter()
+                                .take(index)
+                                .map(|id| {
+                                    match id {
+                                        InternalNode::User(id) => {
+                                            node_names.get(id).map(|n| n.len()).unwrap_or(0)
+                                        }
+                                        _ => 1,
+                                    }
+                                })
+                                .sum();
+    
+                            let raw_x = index * 2 + offset + in_node_offset / 2 + 1;
+
+                            (t_id, raw_x)
+                        }))
                     }
                     InternalNode::Dummy { src, target, .. } => {
                         Box::new(core::iter::once(second.iter().find(|second_id| {
                             match second_id {
                                 InternalNode::User(uid) => uid == target,
                                 InternalNode::Dummy { src: s_src, target: s_target, .. } => src == s_src && target == s_target,
+                                InternalNode::ReverseDummy { d_id, src, target } => todo!(),
                             }
-                        }).unwrap())) as Box<dyn Iterator<Item = &InternalNode<'g, ID>>>
+                        }).unwrap()).map(|t_id| {
+                            let (index, in_node_offset) = match second_entries.get(t_id).copied() {
+                                Some((i, len)) => {
+                                    (i.0, len.0)
+                                },
+                                None => {
+                                    unreachable!("We previously checked and inserted all missing Entries/Dummy Nodes")
+                                }
+                            };
+    
+                            // Calculate the Offset until the Target
+                            let offset: usize = second
+                                .iter()
+                                .take(index)
+                                .map(|id| {
+                                    match id {
+                                        InternalNode::User(id) => {
+                                            node_names.get(id).map(|n| n.len()).unwrap_or(0)
+                                        }
+                                        _ => 1,
+                                    }
+                                })
+                                .sum();
+    
+                            let raw_x = index * 2 + offset + in_node_offset / 2 + 1;
+
+                            (t_id, raw_x)
+                        }))
                     }
+                    InternalNode::ReverseDummy { d_id, src, target } => {
+                        if let Some(same_layer) = first.iter().find(|id| match id {
+                            InternalNode::User(uid) => uid == src,
+                            _ => false,
+                        }) {
+                            Box::new(core::iter::once(same_layer).map(|t_id| {
+                                let (index, in_node_offset) = match first_entries.get(t_id).copied() {
+                                    Some((i, len)) => {
+                                        (i.0, len.0)
+                                    },
+                                    None => {
+                                        unreachable!("We previously checked and inserted all missing Entries/Dummy Nodes")
+                                    }
+                                };
+        
+                                // Calculate the Offset until the Target
+                                let offset: usize = first
+                                    .iter()
+                                    .take(index)
+                                    .map(|id| {
+                                        match id {
+                                            InternalNode::User(id) => {
+                                                node_names.get(id).map(|n| n.len()).unwrap_or(0)
+                                            }
+                                            _ => 1,
+                                        }
+                                    })
+                                    .sum();
+        
+                                let raw_x = index * 2 + offset + in_node_offset / 2 + 1;
+    
+                                (t_id, raw_x)
+                            }))
+                        } else {
+                            let following_layer_iter = core::iter::once(second.iter().find(|second_id| {
+                                match second_id {
+                                    InternalNode::ReverseDummy { src: s_src, target: s_target, .. } => src == s_src && target == s_target,
+                                    _ => false,
+                                }
+                            }).unwrap());
+
+                            Box::new(following_layer_iter.map(|t_id| {
+                                let (index, in_node_offset) = match second_entries.get(t_id).copied() {
+                                    Some((i, len)) => {
+                                        (i.0, len.0)
+                                    },
+                                    None => {
+                                        unreachable!("We previously checked and inserted all missing Entries/Dummy Nodes")
+                                    }
+                                };
+        
+                                // Calculate the Offset until the Target
+                                let offset: usize = second
+                                    .iter()
+                                    .take(index)
+                                    .map(|id| {
+                                        match id {
+                                            InternalNode::User(id) => {
+                                                node_names.get(id).map(|n| n.len()).unwrap_or(0)
+                                            }
+                                            _ => 1,
+                                        }
+                                    })
+                                    .sum();
+        
+                                let raw_x = index * 2 + offset + in_node_offset / 2 + 1;
+    
+                                (t_id, raw_x)
+                            }))
+                        }
+                    },
                 };
 
                 let targets: Vec<_> = succs
-                    .map(|t_id| {
-                        let (index, in_node_offset) = match second_entries.get(t_id).copied() {
-                            Some((i, len)) => {
-
-                                (i.0, len.0)
-                            },
-                            None => {
-                                unreachable!("We previously checked and inserted all missing Entries/Dummy Nodes")
-                            }
-                        };
-
-                        // Calculate the Offset until the Target
-                        let offset: usize = second
-                            .iter()
-                            .take(index)
-                            .map(|id| {
-                                match id {
-                                    InternalNode::User(id) => {
-                                        node_names.get(id).map(|n| n.len()).unwrap_or(0)
-                                    }
-                                    _ => 1,
-                                }
-                            })
-                            .sum();
-
-                        let raw_x = index * 2 + offset + in_node_offset / 2 + 1;
-
+                    .map(|(t_id, raw_x)| {
                         // Calculate the Coordinate of the Target
                         (
                             GridCoordinate(raw_x.min(max_x)),
@@ -228,28 +441,52 @@ where
                     return None;
                 }
 
-                Some(Horizontal {
-                    src_x: root,
-                    src: match src_entry {
-                        InternalNode::User(uid) => *uid,
-                        InternalNode::Dummy { src, .. } => *src,
-                    },
-                    targets,
-                    x_bounds: (sx, tx),
-                })
+                match src_entry {
+                    InternalNode::User(src) | InternalNode::Dummy { src, .. } => {
+                        Some(Horizontal::TopBottom {
+                            src_x: root,
+                            src: *src,
+                            targets,
+                            x_bounds: (sx, tx),
+                        })
+                    }
+                    InternalNode::ReverseDummy { d_id, src, target } => {
+                        if first.iter().any(|n| match n {
+                            InternalNode::User(uid) => uid == src,
+                            _ => false,
+                        }) {
+                            Some(Horizontal::TopTop { src_x: root, src: *src, target: targets.into_iter().next().map(|(c, _)| c).unwrap(), x_bounds: (sx, tx) })
+                        } else if let Some((index, node)) = second.iter().enumerate().find(|(_, n)| match n {
+                            InternalNode::ReverseDummy { d_id, src: s_src, target: s_target } => src == s_src && target == s_target,
+                            _ => false,
+                        }) {
+                            let target = targets.into_iter().next().map(|(c, _)| c).unwrap();
+
+                            let sx = target.min(root);
+                            let tx = target.max(root);
+
+                            Some(Horizontal::BottomTop { src_x: target, src: *src, target: root, x_bounds: (sx, tx) })
+                        } else {
+                            todo!()
+                        }
+                    }
+                }
+                
             })
             .collect();
 
         // Sorts them based on their source X-Coordinates
-        temp_horizontal.sort_unstable_by(|x1, x2| x1.src_x.cmp(&x2.src_x));
+        // temp_horizontal.sort_unstable_by(|x1, x2| x1.src_x.cmp(&x2.src_x));
 
         // Sorts them based on their Targets average Coordinate, to try to avoid
         // unnecessary crossings in the Edges
+        /*
         temp_horizontal.sort_by_cached_key(|hori| {
             let sum_targets: usize = hori.targets.iter().map(|cord| cord.0 .0).sum();
             let target_count = hori.targets.len().max(1);
             sum_targets / target_count
         });
+        */
         temp_horizontal
     }
 
@@ -293,6 +530,9 @@ where
                     InternalNode::Dummy { src, target, .. } => {
                         cursor.set_node(LevelEntry::Dummy { from: src, to: target }, "");
                     }
+                    InternalNode::ReverseDummy { d_id, src, target } => {
+                        cursor.set_node(LevelEntry::Dummy { from: src, to: target }, "");
+                    }
                 };
 
 
@@ -306,6 +546,9 @@ where
                     cursor.set_node(LevelEntry::User(id), name);
                 }
                 InternalNode::Dummy { src, target, .. } => {
+                    cursor.set_node(LevelEntry::Dummy { from: src, to: target }, "");
+                }
+                InternalNode::ReverseDummy { d_id, src, target } => {
                     cursor.set_node(LevelEntry::Dummy { from: src, to: target }, "");
                 }
             };
@@ -336,11 +579,13 @@ where
                 .iter()
                 .enumerate()
                 .map(|(i, h)| {
-                    if i < horis.len() - 1 && h.x_bounds.0 != h.x_bounds.1 {
+                    let x_bounds = h.x_bounds();
+                    if i < horis.len() - 1 && x_bounds.0 != x_bounds.1 {
                         1 + horizontal_spacer
                     } else {
-                        usize::from(i == horis.len() - 1 && h.x_bounds.0 != h.x_bounds.1)
+                        usize::from(i == horis.len() - 1 && x_bounds.0 != x_bounds.1)
                     }
+                    
                 })
                 .sum::<usize>()
             + 4;
@@ -348,9 +593,11 @@ where
         (
             horis.iter().cloned().map(move |hori| {
                 let hy = y;
-                if hori.x_bounds.0 != hori.x_bounds.1 {
+                let x_bounds = hori.x_bounds();
+                if x_bounds.0 != x_bounds.1 {
                     y += 1 + horizontal_spacer;
                 }
+                
 
                 (hori, hy)
             }),
@@ -373,41 +620,119 @@ where
 
         // Insert the Vertical Row below every Node
         for hori in horizontals.iter() {
-            result.set(hori.src_x, *y, Entry::Veritcal(Some(hori.src)));
+            match hori {
+                Horizontal::TopBottom { src_x, src, .. } => {
+                    result.set(*src_x, *y, Entry::Veritcal(Some(src)));
+                }
+                Horizontal::BottomTop { target, src, .. } => {
+                    result.set(*target, *y, Entry::Veritcal(Some(src)));
+                }
+                Horizontal::TopTop { src_x, src, .. } => {
+                    result.set(*src_x, *y, Entry::Veritcal(Some(src)));
+                }
+                Horizontal::BottomBottom { src_x, src, target, x_bounds } => {
+                    // Do nothing
+                }
+            };
+            
         }
         *y += 1;
 
         let (hori_iter, lowest_y) =
             Self::determine_ys(*y - 2, &horizontals, config.vertical_edge_spacing);
         for (hori, y_height) in hori_iter {
-            // Draw the horizontal line
-            if hori.x_bounds.0 != hori.x_bounds.1 {
-                for x in hori.x_bounds.0.between(&(hori.x_bounds.1 + 1)) {
-                    result.set(x, y_height, Entry::Horizontal(hori.src));
+            match hori {
+                Horizontal::TopBottom { src_x, src, targets, x_bounds } => {
+                    // Draw the horizontal line
+                    if x_bounds.0 != x_bounds.1 {
+                        for x in x_bounds.0.between(&(x_bounds.1 + 1)) {
+                            result.set(x, y_height, Entry::Horizontal(src));
+                        }
+                    }
+
+                    // Connect the src node to the horizontal line being drawn
+                    for vy in (*y - 1)..=y_height {
+                        result.set(src_x, vy, Entry::Veritcal(Some(src)));
+                    }
+
+                    for target in targets {
+                        for y in y_height..(lowest_y - 1) {
+                            result.set(target.0, y, Entry::Veritcal(Some(src)));
+                        }
+
+                        for py in y_height..(*y - 1) {
+                            result.set(target.0, py, Entry::Veritcal(Some(src)));
+                        }
+
+                        let ent = if target.1 {
+                            Entry::Veritcal(Some(src))
+                        } else {
+                            Entry::ArrowDown(Some(src))
+                        };
+                        result.set(target.0, lowest_y - 1, ent);
+                    }
                 }
-            }
+                Horizontal::BottomTop {src_x, src, x_bounds, target } => {
+                    // Draw the horizontal line
+                    if x_bounds.0 != x_bounds.1 {
+                        for x in x_bounds.0.between(&(x_bounds.1 + 1)) {
+                            result.set(x, y_height, Entry::Horizontal(src));
+                        }
+                    }
 
-            // Connect the src node to the horizontal line being drawn
-            for vy in (*y - 1)..=y_height {
-                result.set(hori.src_x, vy, Entry::Veritcal(Some(hori.src)));
-            }
+                    // Connect the src node to the horizontal line being drawn
+                    for vy in (*y - 1)..=y_height {
+                        result.set(target, vy, Entry::Veritcal(Some(src)));
+                    }
 
-            for target in hori.targets {
-                for y in y_height..(lowest_y - 1) {
-                    result.set(target.0, y, Entry::Veritcal(Some(hori.src)));
+                    
+                    for y in y_height..=(lowest_y - 1) {
+                        result.set(src_x, y, Entry::Veritcal(Some(src)));
+                    }
+
+                    
+                    for py in y_height..(*y - 1) {
+                        result.set(src_x, py, Entry::Veritcal(Some(src)));
+                    }
+
+                    
                 }
+                Horizontal::TopTop {src_x, src, x_bounds, target } => {
+                    // Draw the horizontal line
+                    if x_bounds.0 != x_bounds.1 {
+                        for x in x_bounds.0.between(&(x_bounds.1 + 1)) {
+                            result.set(x, y_height, Entry::Horizontal(src));
+                        }
+                    }
 
-                for py in y_height..(*y - 1) {
-                    result.set(target.0, py, Entry::Veritcal(Some(hori.src)));
+                    // Connect the src node to the horizontal line being drawn
+                    for vy in (*y - 1)..=y_height {
+                        result.set(src_x, vy, Entry::Veritcal(Some(src)));
+                    }
+
+                    for vy in (*y - 1)..=y_height {
+                        result.set(target, vy, Entry::Veritcal(Some(src)));
+                    }
                 }
+                Horizontal::BottomBottom { src_x, src, target, x_bounds } => {
+                    // Draw the horizontal line
+                    if x_bounds.0 != x_bounds.1 {
+                        for x in x_bounds.0.between(&(x_bounds.1 + 1)) {
+                            result.set(x, y_height, Entry::Horizontal(src));
+                        }
+                    }
 
-                let ent = if target.1 {
-                    Entry::Veritcal(Some(hori.src))
-                } else {
-                    Entry::ArrowDown(Some(hori.src))
-                };
-                result.set(target.0, lowest_y - 1, ent);
-            }
+                    // Connect the src node to the horizontal line being drawn
+                    for vy in y_height..(lowest_y ) {
+                        result.set(src_x, vy, Entry::Veritcal(Some(src)));
+                    }
+                    for vy in y_height..(lowest_y-1) {
+                        result.set(target, vy, Entry::Veritcal(Some(src)));
+                    }
+                    result.set(target, lowest_y-1, Entry::ArrowDown(Some(src)));
+                }
+            };
+            
         }
 
         *y = lowest_y;
@@ -416,6 +741,7 @@ where
     fn generate_levels<T>(
         levels: Vec<Level<'g, ID>>,
         agraph: &AcyclicDirectedGraph<'g, ID, T>,
+        reved_edges: &[(&'g ID, &'g ID)],
     ) -> Vec<Vec<InternalNode<'g, ID>>> {
         if levels.is_empty() {
             return Vec::new();
@@ -426,12 +752,26 @@ where
         let mut internal_levels = levels.iter().map(|level| {
             level.nodes.iter().map(|n| InternalNode::User(*n)).collect::<Vec<_>>()
         }).collect::<Vec<_>>();
+        
+        if !reved_edges.is_empty() {
+            internal_levels.insert(0, Vec::new());
+            internal_levels.push(Vec::new());
+        }
 
-        for index in 0..levels.len()-1 {
+        let level_index_iter = if !reved_edges.is_empty() {
+            1..internal_levels.len()-2
+        } else {
+            0..internal_levels.len()-1
+        };
+
+        
+
+        for index in level_index_iter {
             let split = internal_levels.split_at_mut(index+1);
             let first = split.0.last_mut().unwrap();
             let second = split.1.first_mut().unwrap();
 
+            let mut first_rev = Vec::new();
 
             for fnode in first.iter() {
                 match fnode {
@@ -439,6 +779,16 @@ where
                         let graph_succs = agraph.successors(uid).cloned().unwrap_or_default();
 
                         for gsucc in graph_succs {
+                            if reved_edges.iter().any(|re| re.0 == gsucc) {
+                                let id = dummy_id;
+                                dummy_id += 1;
+                                first_rev.push(InternalNode::ReverseDummy { d_id: id, src: gsucc, target: uid });
+                                
+                                let id = dummy_id;
+                                dummy_id += 1;
+                                second.push(InternalNode::ReverseDummy { d_id: id, src: gsucc, target: uid });
+                            }
+
                             if !second.iter().any(|sid| match sid {
                                 InternalNode::User(uid) => gsucc == *uid,
                                 _ => false,
@@ -459,10 +809,21 @@ where
                             second.push(InternalNode::Dummy { d_id: id, src: *src, target: *target });
                         }
                     }
+                    InternalNode::ReverseDummy { d_id, src, target } => {
+                        if !first.iter().any(|n| match n {
+                            InternalNode::User(uid) => uid == src,
+                            _ => false,
+                        }) {
+                            let id = dummy_id;
+                            dummy_id += 1;
+                            second.push(InternalNode::ReverseDummy { d_id: id, src: *src, target: *target });
+                        }
+                    }
                 };
             }
-        }
 
+            first.extend(first_rev);
+        }
 
         internal_levels
     }
@@ -475,12 +836,8 @@ where
         config: &Config<ID, T>,
         names: HashMap<&'g ID, String>,
     ) -> Self {
-        // TODO
-        // Figure out how to correctly incorporate the reversed Edges into the generated Grid
-        let _ = reved_edges;
-
         // Convert all the previously generated Levels into the Levels we need for this step
-        let internal_levels = Self::generate_levels(levels, agraph);
+        let internal_levels = Self::generate_levels(levels, agraph, &reved_edges);
 
         // We first generate all the horizontals to connect all the Levels
         let horizontal = Self::generate_horizontals(agraph, &internal_levels, &names, config.glyph_width()-1);
@@ -538,6 +895,8 @@ where
 #[cfg(test)]
 mod tests {
 
+    use crate::{DirectedGraph, levels, IDFormatter};
+
     use super::*;
 
     #[test]
@@ -551,7 +910,7 @@ mod tests {
 
     #[test]
     fn determine_ys_nogap_1hori_straight() {
-        let horizontals = [Horizontal {
+        let horizontals = [Horizontal::TopBottom {
             src: &0,
             src_x: GridCoordinate(0),
             targets: vec![(GridCoordinate(0), false)],
@@ -569,7 +928,7 @@ mod tests {
 
     #[test]
     fn determine_ys_nogap_1hori_notstraight() {
-        let horizontals = [Horizontal {
+        let horizontals = [Horizontal::TopBottom {
             src: &0,
             src_x: GridCoordinate(0),
             targets: vec![(GridCoordinate(2), false)],
@@ -584,5 +943,4 @@ mod tests {
 
         assert!(result_iter.next().is_none());
     }
-
 }
