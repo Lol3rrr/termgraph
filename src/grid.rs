@@ -145,7 +145,7 @@ where
             // assert!(!second.is_empty());
 
             let reverse_dummies = second.iter().enumerate().filter_map(|(i, n)| match n {
-                InternalNode::ReverseDummy { d_id, src, target } => Some((i, src, target)),
+                InternalNode::ReverseDummy { src, target, .. } => Some((i, src, target)),
                 _ => None,
             });
 
@@ -312,7 +312,7 @@ where
                             match second_id {
                                 InternalNode::User(uid) => uid == target,
                                 InternalNode::Dummy { src: s_src, target: s_target, .. } => src == s_src && target == s_target,
-                                InternalNode::ReverseDummy { d_id, src, target } => todo!(),
+                                InternalNode::ReverseDummy { .. } => false,
                             }
                         }).unwrap()).map(|t_id| {
                             let (index, in_node_offset) = match second_entries.get(t_id).copied() {
@@ -343,7 +343,7 @@ where
                             (t_id, raw_x)
                         }))
                     }
-                    InternalNode::ReverseDummy { d_id, src, target } => {
+                    InternalNode::ReverseDummy { src, target, .. } => {
                         if let Some(same_layer) = first.iter().find(|id| match id {
                             InternalNode::User(uid) => uid == src,
                             _ => false,
@@ -450,14 +450,14 @@ where
                             x_bounds: (sx, tx),
                         })
                     }
-                    InternalNode::ReverseDummy { d_id, src, target } => {
+                    InternalNode::ReverseDummy { src, target, .. } => {
                         if first.iter().any(|n| match n {
                             InternalNode::User(uid) => uid == src,
                             _ => false,
                         }) {
                             Some(Horizontal::TopTop { src_x: root, src: *src, target: targets.into_iter().next().map(|(c, _)| c).unwrap(), x_bounds: (sx, tx) })
-                        } else if let Some((index, node)) = second.iter().enumerate().find(|(_, n)| match n {
-                            InternalNode::ReverseDummy { d_id, src: s_src, target: s_target } => src == s_src && target == s_target,
+                        } else if let Some((_, _)) = second.iter().enumerate().find(|(_, n)| match n {
+                            InternalNode::ReverseDummy { src: s_src, target: s_target, .. } => src == s_src && target == s_target,
                             _ => false,
                         }) {
                             let target = targets.into_iter().next().map(|(c, _)| c).unwrap();
@@ -531,7 +531,7 @@ where
                     InternalNode::Dummy { src, target, .. } => {
                         cursor.set_node(LevelEntry::Dummy { from: src, to: target }, "");
                     }
-                    InternalNode::ReverseDummy { d_id, src, target } => {
+                    InternalNode::ReverseDummy { src, target, .. } => {
                         cursor.set_node(LevelEntry::Dummy { from: src, to: target }, "");
                     }
                 };
@@ -549,7 +549,7 @@ where
                 InternalNode::Dummy { src, target, .. } => {
                     cursor.set_node(LevelEntry::Dummy { from: src, to: target }, "");
                 }
-                InternalNode::ReverseDummy { d_id, src, target } => {
+                InternalNode::ReverseDummy { src, target, .. } => {
                     cursor.set_node(LevelEntry::Dummy { from: src, to: target }, "");
                 }
             };
@@ -631,7 +631,7 @@ where
                 Horizontal::TopTop { src_x, src, .. } => {
                     result.set(*src_x, *y, Entry::Veritcal(Some(src)));
                 }
-                Horizontal::BottomBottom { src_x, src, target, x_bounds } => {
+                Horizontal::BottomBottom { .. } => {
                     // Do nothing
                 }
             };
@@ -810,7 +810,7 @@ where
                             second.push(InternalNode::Dummy { d_id: id, src: *src, target: *target });
                         }
                     }
-                    InternalNode::ReverseDummy { d_id, src, target } => {
+                    InternalNode::ReverseDummy { src, target, .. } => {
                         if !first.iter().any(|n| match n {
                             InternalNode::User(uid) => uid == src,
                             _ => false,
