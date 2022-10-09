@@ -108,48 +108,54 @@ where
 }
 
 impl<'g, ID> Entry<'g, ID> {
-    pub fn display<C, N>(&self, get_color: &mut C, get_name: N, glyphs: &LineGlyphs)
-    where
+    pub fn fdisplay<C, N, W>(
+        &self,
+        get_color: &mut C,
+        get_name: N,
+        glyphs: &LineGlyphs,
+        dest: &mut W,
+    ) where
         C: FnMut(&'g ID) -> Option<usize>,
         N: FnOnce(&'g ID) -> String,
+        W: std::io::Write,
     {
-        match self {
-            Entry::Empty => print!(" "),
-            Entry::OpenParen => print!("("),
-            Entry::CloseParen => print!(")"),
+        let _ = match self {
+            Entry::Empty => write!(dest, " "),
+            Entry::OpenParen => write!(dest, "("),
+            Entry::CloseParen => write!(dest, ")"),
             Entry::Horizontal(src) => match get_color(*src) {
-                Some(c) => print!("\x1b[{}m{}\x1b[0m", c, glyphs.horizontal),
-                None => print!("{}", glyphs.horizontal),
+                Some(c) => write!(dest, "\x1b[{}m{}\x1b[0m", c, glyphs.horizontal),
+                None => write!(dest, "{}", glyphs.horizontal),
             },
             Entry::Veritcal(src) => match src {
                 Some(src) => match get_color(*src) {
-                    Some(c) => print!("\x1b[{}m{}\x1b[0m", c, glyphs.vertical),
-                    None => print!("{}", glyphs.vertical),
+                    Some(c) => write!(dest, "\x1b[{}m{}\x1b[0m", c, glyphs.vertical),
+                    None => write!(dest, "{}", glyphs.vertical),
                 },
-                None => print!("{}", glyphs.vertical),
+                None => write!(dest, "{}", glyphs.vertical),
             },
             Entry::Cross(src) => match src {
                 Some(src) => match get_color(*src) {
-                    Some(c) => print!("\x1b[{}m{}\x1b[0m", c, glyphs.crossing),
-                    None => print!("{}", glyphs.crossing),
+                    Some(c) => write!(dest, "\x1b[{}m{}\x1b[0m", c, glyphs.crossing),
+                    None => write!(dest, "{}", glyphs.crossing),
                 },
-                None => print!("{}", glyphs.crossing),
+                None => write!(dest, "{}", glyphs.crossing),
             },
             Entry::ArrowDown(src) => match src {
                 Some(src) => match get_color(*src) {
-                    Some(c) => print!("\x1b[{}m{}\x1b[0m", c, glyphs.arrow_down),
-                    None => print!("{}", glyphs.arrow_down),
+                    Some(c) => write!(dest, "\x1b[{}m{}\x1b[0m", c, glyphs.arrow_down),
+                    None => write!(dest, "{}", glyphs.arrow_down),
                 },
-                None => print!("{}", glyphs.arrow_down),
+                None => write!(dest, "{}", glyphs.arrow_down),
             },
-            Entry::Node(_, part) if *part > 0 => {}
+            Entry::Node(_, part) if *part > 0 => Ok(()),
             Entry::Node(id, _) => match id {
-                EntryNode::User(id) => print!("{}", get_name(id)),
+                EntryNode::User(id) => write!(dest, "{}", get_name(id)),
                 EntryNode::SingleSrc(from) => match get_color(*from) {
-                    Some(c) => print!("\x1b[{}m|\x1b[0m", c),
-                    None => print!("|"),
+                    Some(c) => write!(dest, "\x1b[{}m|\x1b[0m", c),
+                    None => write!(dest, "|"),
                 },
-                EntryNode::MultiSrc => print!("|"),
+                EntryNode::MultiSrc => write!(dest, "|"),
             },
         };
     }

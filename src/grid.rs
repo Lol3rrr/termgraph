@@ -864,7 +864,7 @@ where
         }
     }
 
-    pub fn display(&self, color_palette: Option<&Vec<Color>>, glyphs: &LineGlyphs) {
+    pub fn fdisplay<W>(&self, color_palette: Option<&Vec<Color>>, glyphs: &LineGlyphs, dest: &mut W) where W: std::io::Write {
         let mut colors = HashMap::new();
         let mut current_color = 0;
 
@@ -882,13 +882,14 @@ where
 
         for row in &self.inner.inner {
             for entry in row {
-                entry.display(
+                entry.fdisplay(
                     &mut get_color,
                     |id| self.names.get(id).unwrap().clone(),
                     glyphs,
+                    dest,
                 );
             }
-            println!();
+            let _ = writeln!(dest);
         }
     }
 }

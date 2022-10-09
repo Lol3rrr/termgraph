@@ -55,6 +55,34 @@ pub fn display<ID, T>(graph: &DirectedGraph<ID, T>, config: &Config<ID, T>)
 where
     ID: Hash + Eq + Display,
 {
+    fdisplay(graph, config, std::io::stdout())
+}
+
+/// This function is essentially the same as [`display`], but allows you to specify the Output
+/// Target.
+///
+/// # Example
+/// Write the visual to a Vec
+/// ```rust
+/// use termgraph::{DirectedGraph, IDFormatter, Config};
+///
+/// let config = Config::new(IDFormatter::new(), 3);
+/// let mut graph = DirectedGraph::new();
+/// graph.add_nodes([(0, "first"), (1, "second"), (2, "third")]);
+/// graph.add_edges([(0, 1), (0,2), (1, 2)]);
+///
+/// let mut target = Vec::new();
+/// termgraph::fdisplay(&graph, &config, &mut target);
+/// ```
+pub fn fdisplay<ID, T, W>(graph: &DirectedGraph<ID, T>, config: &Config<ID, T>, mut dest: W)
+where
+    ID: Hash + Eq + Display,
+    W: std::io::Write,
+{
+    if graph.is_empty() {
+        return;
+    }
+
     if graph.is_empty() {
         return;
     }
@@ -70,6 +98,10 @@ where
     let levels = levels::levels(&agraph, config, &names);
 
     let grid = grid::Grid::construct(&agraph, levels, reved_edges, config, names);
-    grid.display(config.color_palette.as_ref(), &config.line_glyphs);
-    println!();
+    grid.fdisplay(
+        config.color_palette.as_ref(),
+        &config.line_glyphs,
+        &mut dest,
+    );
+    let _ = writeln!(dest);
 }
