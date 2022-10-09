@@ -141,21 +141,21 @@ where
         max_x: usize,
     ) -> Vec<Horizontal<'g, ID>> {
         // Special case
-        if first.is_empty() {
-            assert!(!second.is_empty());
+        let base: Vec<_> = {
+            // assert!(!second.is_empty());
 
             let reverse_dummies = second.iter().enumerate().filter_map(|(i, n)| match n {
                 InternalNode::ReverseDummy { d_id, src, target } => Some((i, src, target)),
                 _ => None,
             });
 
-            return reverse_dummies.map(|(src_index, src, target)| {
+            reverse_dummies.filter_map(|(src_index, src, target)| {
                 let (target_index, target_user_id) = second.iter().enumerate().find_map(|(i, n)| {
                     match n {
-                        InternalNode::User(uid) => Some((i, *uid)),
+                        InternalNode::User(uid) if uid == target => Some((i, *uid)),
                         _ => None,
                     }
-                }).unwrap();
+                })?;
 
 
                 // Calculate the Offset until the Target
@@ -189,15 +189,15 @@ where
                     })
                     .sum();
 
-                let raw_x = target_index * 2 + offset + 3;
+                let raw_x = src_index * 2 + offset + 1;
                 let src_x = raw_x.min(max_x);
 
                 let sx = GridCoordinate(src_x.min(target_x));
                 let tx = GridCoordinate(src_x.max(target_x));
 
-                Horizontal::BottomBottom { src_x: GridCoordinate(src_x), src: *src, target: GridCoordinate(target_x), x_bounds: (sx, tx) }
-            }).collect();
-        }
+                Some(Horizontal::BottomBottom { src_x: GridCoordinate(src_x), src: *src, target: GridCoordinate(target_x), x_bounds: (sx, tx) })
+            }).collect()
+        };
 
         #[derive(Clone, Copy)]
         struct NodeNameLength(usize);
@@ -261,7 +261,7 @@ where
             (GridCoordinate(cord), e)
         });
 
-        let temp_horizontal: Vec<_> = first_src_coords
+        let mut temp_horizontal: Vec<_> = first_src_coords
             .filter_map(|(root, src_entry)| {
                 // Connect the Source to its Targets in the lower Level
 
@@ -487,6 +487,7 @@ where
             sum_targets / target_count
         });
         */
+        temp_horizontal.extend(base);
         temp_horizontal
     }
 
@@ -894,9 +895,6 @@ where
 
 #[cfg(test)]
 mod tests {
-
-    use crate::{DirectedGraph, levels, IDFormatter};
-
     use super::*;
 
     #[test]
