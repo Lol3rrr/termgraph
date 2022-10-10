@@ -755,8 +755,21 @@ where
         }).collect::<Vec<_>>();
         
         if !reved_edges.is_empty() {
-            internal_levels.insert(0, Vec::new());
-            internal_levels.push(Vec::new());
+            let first_level_nodes = internal_levels.first().expect("We previously checked that there is at least 1 level");
+            if first_level_nodes.iter().any(|node| match node {
+                InternalNode::User(id) => reved_edges.iter().any(|(src, _)| id == src),
+                _ => false,
+            }) {
+                internal_levels.insert(0, Vec::new());
+            }
+
+            let last_level_nodes = internal_levels.last().expect("We previously checked that there is at least 1 level");
+            if last_level_nodes.iter().any(|node| match node {
+                InternalNode::User(id) => reved_edges.iter().any(|(src, _)| id == src),
+                _ => false,
+            }) {
+                internal_levels.push(Vec::new());
+            }
         }
 
         let level_index_iter = if !reved_edges.is_empty() {
