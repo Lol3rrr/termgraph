@@ -1,6 +1,6 @@
 # Changelog
 
-# [0.4] - {}.{}.{}
+# [0.4] - 12.2.2023
 Addde more features
 ## Changes
 * Added Max-Glyph-Width configuration option (#16)
