@@ -2,7 +2,7 @@
 [![Docs](https://docs.rs/termgraph/badge.svg)](https://docs.rs/termgraph/)
 [![Crates.io](https://img.shields.io/crates/v/termgraph.svg)](https://crates.io/crates/termgraph)
 
-A utility to display Directed-Graphs in the Terminal
+A utility to display Directed-Graphs in the Terminal, purely written in rust without external dependencies
 
 ## Motivation
 This crate was born to allow for easy visualization of Graphs in the Terminal, either for debugging
