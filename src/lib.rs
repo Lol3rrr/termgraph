@@ -83,10 +83,6 @@ where
         return;
     }
 
-    if graph.is_empty() {
-        return;
-    }
-
     let (agraph, reved_edges) = graph.to_acyclic();
 
     let names: HashMap<&ID, String> = agraph
