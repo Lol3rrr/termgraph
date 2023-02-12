@@ -112,7 +112,7 @@ where
                     .map(|(id, out, in_)| (id, out - in_))
                     .max_by_key(|(_, v)| *v)
                     .map(|(id, _)| id)
-                    .expect("");
+                    .expect("We previously made sure that there is at least one Node");
 
                 s1.push(u);
 

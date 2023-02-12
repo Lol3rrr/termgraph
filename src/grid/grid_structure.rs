@@ -44,7 +44,10 @@ where
 
         Row {
             y,
-            row: self.inner.get_mut(y).unwrap(),
+            row: self
+                .inner
+                .get_mut(y)
+                .expect("We previously made sure that there are enough lines"),
         }
     }
 
@@ -77,7 +80,10 @@ where
             self.row.push(Entry::Empty);
         }
 
-        let target = self.row.get_mut(x).unwrap();
+        let target = self
+            .row
+            .get_mut(x)
+            .expect("We previously made sure that there are enough columns");
         *target = &target + entry;
     }
 
@@ -119,13 +125,19 @@ where
 
         if entry.is_user() {
             for part in 0..length {
-                let target = self.row.get_mut(self.x).unwrap();
+                let target = self
+                    .row
+                    .get_mut(self.x)
+                    .expect("We previously made sure there are enough rows");
                 *target = &target + Entry::Node(entry.clone().into(), part);
 
                 self.x += 1;
             }
         } else {
-            let target = self.row.get_mut(self.x).unwrap();
+            let target = self
+                .row
+                .get_mut(self.x)
+                .expect("We previously made sure there are enough rows");
             *target = &target + Entry::Node(entry.clone().into(), 0);
 
             self.x += 1;
@@ -139,7 +151,10 @@ where
             self.row.push(Entry::Empty);
         }
 
-        let target = self.row.get_mut(self.x).unwrap();
+        let target = self
+            .row
+            .get_mut(self.x)
+            .expect("We previously made sure there are enough columns");
         *target = &target + entry;
 
         self.x += 1;

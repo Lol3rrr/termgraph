@@ -430,12 +430,12 @@ where
                 let sx = *std::iter::once(&root)
                     .chain(targets.iter().map(|t| &t.0))
                     .min()
-                    .unwrap();
+                    .expect("We know that there is at least one item in the Iterator so there is always a min element");
                 // Smallest x coordinate in the entire horizontal
                 let tx = *std::iter::once(&root)
                     .chain(targets.iter().map(|t| &t.0))
                     .max()
-                    .unwrap();
+                    .expect("We know that there is at least one item in the Iterator so there is always a max element");
 
                 if targets.is_empty() {
                     return None;
@@ -455,12 +455,13 @@ where
                             InternalNode::User(uid) => uid == src,
                             _ => false,
                         }) {
-                            Some(Horizontal::TopTop { src_x: root, src: *src, target: targets.into_iter().next().map(|(c, _)| c).unwrap(), x_bounds: (sx, tx) })
+                            let target = targets.into_iter().next().map(|(c, _)| c).expect("We previously checked that targets is not empty");
+                            Some(Horizontal::TopTop { src_x: root, src: *src, target, x_bounds: (sx, tx) })
                         } else if let Some((_, _)) = second.iter().enumerate().find(|(_, n)| match n {
                             InternalNode::ReverseDummy { src: s_src, target: s_target, .. } => src == s_src && target == s_target,
                             _ => false,
                         }) {
-                            let target = targets.into_iter().next().map(|(c, _)| c).unwrap();
+                            let target = targets.into_iter().next().map(|(c, _)| c).expect("We previously checked that targets is not empty");
 
                             let sx = target.min(root);
                             let tx = target.max(root);
@@ -543,7 +544,7 @@ where
             cursor.set(Entry::Empty);
             match &entry {
                 InternalNode::User(id) => {
-                    let name = node_names.get(id).expect("");
+                    let name = node_names.get(id).expect("There is a Name for every Node");
                     cursor.set_node(LevelEntry::User(id), name);
                 }
                 InternalNode::Dummy { src, target, .. } => {
@@ -782,8 +783,8 @@ where
 
         for index in level_index_iter {
             let split = internal_levels.split_at_mut(index+1);
-            let first = split.0.last_mut().unwrap();
-            let second = split.1.first_mut().unwrap();
+            let first = split.0.last_mut().expect("We know that there are levels before the current one");
+            let second = split.1.first_mut().expect("We know that there are levels after the current one");
 
             let mut first_rev = Vec::new();
 

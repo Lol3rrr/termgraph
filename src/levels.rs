@@ -59,7 +59,9 @@ where
                             .map(|_| Level { nodes: Vec::new() }),
                     );
 
-                    levels.get_mut(v_level).expect("")
+                    levels
+                        .get_mut(v_level)
+                        .expect("We previously made sure that there are enough entries in the list")
                 }
             };
 

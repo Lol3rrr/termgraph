@@ -43,7 +43,9 @@ where
         .collect();
 
     for id in graph.0.keys() {
-        let data = nodes.get(id).expect("");
+        let data = nodes
+            .get(id)
+            .expect("Every node of the Graph is also in the Map");
         if data.index.is_none() {
             strongconnect(
                 id,
@@ -84,11 +86,17 @@ fn strongconnect<'g, ID, I, AS>(
 
     if let Some(succs) = edges.get(node) {
         for succ_id in succs {
-            let w = nodes.get(succ_id).expect("");
+            let w = match nodes.get(succ_id) {
+                Some(w) => w,
+                None => continue,
+            };
+
             if w.index.is_none() {
                 strongconnect(succ_id, nodes, edges, stack, index_fn, add_scc);
 
-                let w = nodes.get(succ_id).expect("");
+                let w = nodes
+                    .get(succ_id)
+                    .expect("We previously already accessed that Node");
                 let w_lowlink = w.lowlink.expect("");
 
                 let v = nodes.get_mut(node).expect("");

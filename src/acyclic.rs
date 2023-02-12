@@ -50,7 +50,13 @@ where
                     if succs.iter().all(|id| reachable.contains_key(id)) {
                         let others: HashSet<&ID> = succs
                             .iter()
-                            .flat_map(|id| reachable.get(id).expect("").iter().copied())
+                            .flat_map(|id| {
+                                reachable
+                                    .get(id)
+                                    .expect("We previously check that it contains the Key")
+                                    .iter()
+                                    .copied()
+                            })
                             .chain(succs.iter().copied())
                             .collect();
 
@@ -75,7 +81,11 @@ where
 
             let succ_reachs: HashSet<_> = edges
                 .iter()
-                .flat_map(|id| reachable.get(id).expect(""))
+                .flat_map(|id| {
+                    reachable
+                        .get(id)
+                        .expect("There is an Entry in the reachable Map for every Node")
+                })
                 .collect();
 
             let unique_edges: HashSet<&ID> = edges
@@ -208,7 +218,9 @@ where
             // and may even be outright wrong
 
             if potential.len() == 1 {
-                let (index, entry) = potential.pop().expect("");
+                let (index, entry) = potential
+                    .pop()
+                    .expect("We previously checked that there is at least one item in it");
                 ordering.push(entry);
                 nodes.remove(index);
                 continue;
@@ -244,7 +256,7 @@ where
                 .enumerate()
                 .find(|(_, id)| **id == entry)
                 .map(|(i, _)| i)
-                .unwrap();
+                .expect("We know that the there is at least one potential entry, so we can assume that we find that entry");
             ordering.push(entry);
             nodes.remove(index);
         }
