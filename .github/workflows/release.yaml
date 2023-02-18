@@ -22,6 +22,7 @@ jobs:
   create-release:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v2
       - name: Create GitHub release
         uses: Roang-zero1/github-create-release-action@master
         with:
