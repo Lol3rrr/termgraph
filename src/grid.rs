@@ -271,13 +271,18 @@ where
                         let raw_succs = agraph.successors(id).cloned().unwrap_or_default();
                         
                         Box::new(raw_succs.into_iter().map(|succ_id| {
-                            second.iter().find(|second_id| {
+                            match second.iter().find(|second_id| {
                                 match second_id {
                                     InternalNode::User(uid) => *uid == succ_id,
                                     InternalNode::Dummy { src, target, .. } => *src == *id && *target == succ_id,
                                     InternalNode::ReverseDummy { src, target, .. } => *src == *id && *target == succ_id,
                                 }
-                            }).expect("")
+                            }) {
+                                Some(s) => s,
+                                None => {
+                                    panic!("Could not find successor Node in second {}", succ_id)
+                                }
+                            }
                         }).map(|t_id| {
                             let (index, in_node_offset) = match second_entries.get(t_id).copied() {
                                 Some((i, len)) => {

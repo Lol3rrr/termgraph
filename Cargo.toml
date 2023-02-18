@@ -13,4 +13,9 @@ license = "MIT OR Apache-2.0"
 [dependencies]
 
 [dev-dependencies]
-rand = "0.8.5"
+rand = { version = "0.8.5", features = ["small_rng"] }
+criterion = "0.3"
+
+[[bench]]
+name = "basic"
+harness = false
