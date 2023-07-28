@@ -55,7 +55,7 @@ pub fn display<ID, T>(graph: &DirectedGraph<ID, T>, config: &Config<ID, T>)
 where
     ID: Hash + Eq + Display,
 {
-    fdisplay(graph, config, std::io::stdout())
+    fdisplay(graph, config, std::io::stdout().lock())
 }
 
 /// This function is essentially the same as [`display`], but allows you to specify the Output
@@ -91,9 +91,9 @@ where
         .map(|(id, value)| (*id, config.formatter.format_node(*id, value)))
         .collect();
 
-    let levels = levels::levels(&agraph, config, &names);
+    let levels = levels::GraphLevels::construct(&agraph, config, &names);
 
-    let grid = grid::Grid::construct(&agraph, levels, reved_edges, config, names);
+    let grid = grid::Grid::construct(&agraph, levels.0.clone(), reved_edges, config, names);
     grid.fdisplay(
         config.color_palette.as_ref(),
         &config.line_glyphs,
