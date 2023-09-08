@@ -146,7 +146,7 @@ impl<ID, T> Config<ID, T> {
     /// Sets the vertical spacing between the horizontal connecting edges
     ///
     /// # Example
-    /// ```
+    /// ```ignore
     /// Spacing = 1     Spacing = 2
     ///
     /// (a) (b)         (a) (b)
