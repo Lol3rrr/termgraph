@@ -67,7 +67,7 @@ where
                                 .map(|id| {
                                     match id {
                                         InternalNode::User(id) => {
-                                            node_names.get(id).map(|n| n.len()).unwrap_or(0)
+                                            node_names.get(id).map_or(0, String::len)
                                         }
                                         _ => 1,
                                     }
@@ -103,7 +103,7 @@ where
                                 .map(|id| {
                                     match id {
                                         InternalNode::User(id) => {
-                                            node_names.get(id).map(|n| n.len()).unwrap_or(0)
+                                            node_names.get(id).map_or(0, String::len)
                                         }
                                         _ => 1,
                                     }
@@ -137,7 +137,7 @@ where
                                     .map(|id| {
                                         match id {
                                             InternalNode::User(id) => {
-                                                node_names.get(id).map(|n| n.len()).unwrap_or(0)
+                                                node_names.get(id).map_or(0, String::len)
                                             }
                                             _ => 1,
                                         }
@@ -179,7 +179,7 @@ where
                                     .map(|id| {
                                         match id {
                                             InternalNode::User(id) => {
-                                                node_names.get(id).map(|n| n.len()).unwrap_or(0)
+                                                node_names.get(id).map_or(0, String::len)
                                             }
                                             _ => 1,
                                         }

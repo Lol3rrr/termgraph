@@ -27,7 +27,7 @@ where
     ID: Display,
 {
     fn format_node(&self, id: &ID, _: &T) -> String {
-        format!("({})", id)
+        format!("({id})")
     }
 }
 
@@ -52,6 +52,6 @@ where
     T: Display,
 {
     fn format_node(&self, _: &ID, value: &T) -> String {
-        format!("({})", value)
+        format!("({value})")
     }
 }

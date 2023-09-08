@@ -179,7 +179,7 @@ where
         for (from, to) in self.inner.edges.iter() {
             for target in to {
                 let entry = result.entry(target);
-                let value = entry.or_insert_with(HashSet::new);
+                let value = entry.or_default();
                 value.insert(*from);
             }
         }

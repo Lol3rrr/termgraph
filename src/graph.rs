@@ -70,7 +70,7 @@ where
         }
     }
 
-    /// Converts the DirectedGraph into an AcyclicDirectedGraph and also returns a List of edges
+    /// Converts the [`DirectedGraph`] into an [`AcyclicDirectedGraph`] and also returns a List of edges
     /// that needed to be reversed to make the Graph acyclic.
     pub(crate) fn to_acyclic(&self) -> (AcyclicDirectedGraph<'_, ID, T>, Vec<(&ID, &ID)>) {
         let anodes: HashMap<_, _> = self.nodes.iter().collect();

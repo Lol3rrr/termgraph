@@ -22,7 +22,7 @@ impl<'g, ID> Clone for Level<'g, ID> {
 pub struct GraphLevels<'g, ID>(pub Vec<Level<'g, ID>>);
 
 impl<'g, ID> GraphLevels<'g, ID> {
-    /// Constructs the GraphLevels from the provided Graph and Config
+    /// Constructs the [`GraphLevels`] from the provided Graph and Config
     pub fn construct<T>(
         agraph: &AcyclicDirectedGraph<'g, ID, T>,
         config: &Config<ID, T>,
@@ -62,8 +62,7 @@ impl<'g, ID> GraphLevels<'g, ID> {
                 Some(out) => out
                     .map(|id| vertex_levels.get(id).unwrap_or(&0))
                     .max()
-                    .map(|m| m + 1)
-                    .unwrap_or(0),
+                    .map_or(0, |m| m + 1),
                 None => 0,
             };
 
@@ -91,9 +90,9 @@ impl<'g, ID> GraphLevels<'g, ID> {
                 let current_glyph_width: usize = level
                     .nodes
                     .iter()
-                    .map(|n| node_names.get(n).map(|name| name.len()).unwrap_or(0) + 2)
+                    .map(|n| node_names.get(n).map_or(0, String::len) + 2)
                     .sum();
-                let current_node_width = node_names.get(v).map(|name| name.len()).unwrap_or(0);
+                let current_node_width = node_names.get(v).map_or(0, String::len);
                 let upper_bound = config.glyph_width().saturating_sub(current_node_width + 3);
                 if current_glyph_width >= upper_bound {
                     debug_assert!(current_node_width < config.glyph_width() - 3);

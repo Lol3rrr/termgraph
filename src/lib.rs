@@ -55,7 +55,7 @@ pub fn display<ID, T>(graph: &DirectedGraph<ID, T>, config: &Config<ID, T>)
 where
     ID: Hash + Eq + Display,
 {
-    fdisplay(graph, config, std::io::stdout().lock())
+    fdisplay(graph, config, std::io::stdout().lock());
 }
 
 /// This function is essentially the same as [`display`], but allows you to specify the Output
@@ -79,6 +79,7 @@ where
     ID: Hash + Eq + Display,
     W: std::io::Write,
 {
+    // Do nothing if the graph is empty
     if graph.is_empty() {
         return;
     }

@@ -130,7 +130,7 @@ where
     s1
 }
 
-/// Based on this Paper: https://www.sciencedirect.com/science/article/pii/002001909390079O
+/// Based on this [Paper](https://www.sciencedirect.com/science/article/pii/002001909390079O)
 pub fn calulate<'g, ID>(
     mut nodes: HashSet<&'g ID>,
     edges: HashMap<&'g ID, HashSet<&'g ID>>,

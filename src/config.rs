@@ -43,6 +43,7 @@ pub struct LineGlyphBuilder {
 
 impl LineGlyphBuilder {
     /// Creates the base Builder using the default ASCII symbols
+    #[must_use]
     pub const fn ascii() -> Self {
         Self {
             vertical: '|',
@@ -53,21 +54,25 @@ impl LineGlyphBuilder {
     }
 
     /// Set the Glyph for vertical lines
+    #[must_use]
     pub const fn vertical(mut self, glyph: char) -> Self {
         self.vertical = glyph;
         self
     }
     /// Set the Glyph for horizontal lines
+    #[must_use]
     pub const fn horizontal(mut self, glyph: char) -> Self {
         self.horizontal = glyph;
         self
     }
     /// Set the Glyph for the crossings of two lines
+    #[must_use]
     pub const fn crossing(mut self, glyph: char) -> Self {
         self.crossing = glyph;
         self
     }
     /// Set the Glyph for arrow heads at the end of the edges
+    #[must_use]
     pub const fn arrow_down(mut self, glyph: char) -> Self {
         self.arrow_down = glyph;
         self
@@ -123,6 +128,7 @@ impl<ID, T> Config<ID, T> {
     /// # Default Values
     /// * Colors: disabled
     /// * Vertical-Edge-Spacing: 1
+    #[must_use]
     pub fn new<F>(nfmt: F, max_per_layer: usize) -> Self
     where
         F: NodeFormat<ID, T> + 'static,
@@ -138,12 +144,28 @@ impl<ID, T> Config<ID, T> {
     }
 
     /// Sets the vertical spacing between the horizontal connecting edges
+    ///
+    /// # Example
+    /// ```
+    /// Spacing = 1     Spacing = 2
+    ///
+    /// (a) (b)         (a) (b)
+    ///  |   |           |   |
+    ///  |   ----|       |   ----|
+    ///  |       |       |       |
+    ///  ----|   |       |       |
+    ///  |   |   |       |---|   |
+    /// (c) (d) (e)      |   |   |
+    ///                 (c) (d) (e)
+    /// ```
+    #[must_use]
     pub fn vertical_edge_spacing(mut self, n_spacing: usize) -> Self {
         self.vertical_edge_spacing = n_spacing;
         self
     }
 
     /// Sets the Formatter of this Configuration to the provided one
+    #[must_use]
     pub fn formatter<F>(mut self, nfmt: F) -> Self
     where
         F: NodeFormat<ID, T> + 'static,
@@ -153,12 +175,14 @@ impl<ID, T> Config<ID, T> {
     }
 
     /// Updates the Number of Nodes that should be placed on a single horizontal Layer at most
+    #[must_use]
     pub fn max_per_layer(mut self, count: usize) -> Self {
         self.max_per_layer = count;
         self
     }
 
     /// Sets the Color-Palette to the default Color-Palette
+    #[must_use]
     pub fn default_colors(mut self) -> Self {
         self.color_palette = Some(vec![
             Color::Red,
@@ -172,18 +196,21 @@ impl<ID, T> Config<ID, T> {
     }
 
     /// Sets the Color-Palette to the given List of Colors
+    #[must_use]
     pub fn custom_colors(mut self, colors: Vec<Color>) -> Self {
         self.color_palette = Some(colors);
         self
     }
 
     /// Disables the colors for the output
+    #[must_use]
     pub fn disable_colors(mut self) -> Self {
         self.color_palette = None;
         self
     }
 
     /// Sets the Glyphs to use for the Lines in the Graph
+    #[must_use]
     pub fn line_glyphs<L>(mut self, glyphs: L) -> Self
     where
         L: Into<LineGlyphs>,
@@ -193,6 +220,7 @@ impl<ID, T> Config<ID, T> {
     }
 
     /// Set the max glyph width per layer
+    #[must_use]
     pub fn max_glyphs_per_layer(mut self, max: usize) -> Self {
         self.max_glyphs_per_layer = max;
         self
